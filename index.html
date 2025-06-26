@@ -897,24 +897,53 @@
                    }
                });
            }
-           // --- Parse Panel Legend ---
+           // --- Parse Panel Legend (New Robust Method) ---
            const panelLegendSheet = workbook.Sheets[legendSheetName];
            const panelLegendJson = XLSX.utils.sheet_to_json(panelLegendSheet, { header: 1, defval: "" });
            const panelLegend = {};
+
+           if (panelLegendJson.length < 1) {
+               throw new Error('The "Panel Legend" sheet is empty or could not be read.');
+           }
+
+           const headers = panelLegendJson[0].map(h => String(h || '').trim().toLowerCase());
+           const panelIdColIndex = headers.indexOf('panel id');
+
+           if (panelIdColIndex === -1) {
+               throw new Error('Could not find a "Panel ID" column in the "Panel Legend" sheet. Please ensure the column header is named "Panel ID".');
+           }
+
+           // Create a map of lowercase headers to their original index
+           const headerMap = {};
+           panelLegendJson[0].forEach((h, i) => {
+               headerMap[String(h || '').trim().toLowerCase()] = i;
+           });
+
+           const keyToHeaderMap = {
+               length: 'length',
+               width: 'width',
+               thickness: 'thickness',
+               castingType: 'casting type',
+               finish: 'finish',
+               color: 'color',
+               comments: 'comments'
+           };
+
            for (let i = 1; i < panelLegendJson.length; i++) {
                const row = panelLegendJson[i];
-               if (row && row.length > 0 && row[0]) {
-                   const panelId = String(row[0]).trim();
-                   if (panelId) {
-                       panelLegend[panelId] = {
-                           length: String(row[1] || '').trim(),
-                           width: String(row[2] || '').trim(),
-                           thickness: String(row[3] || '').trim(),
-                           castingType: String(row[4] || '').trim(),
-                           finish: String(row[5] || '').trim(),
-                           color: String(row[6] || '').trim(),
-                           comments: String(row[7] || '').trim()
-                       };
+               if (!row || row.length === 0) continue; // Skip empty rows
+
+               const panelId = String(row[panelIdColIndex] || '').trim();
+               if (panelId) {
+                   panelLegend[panelId] = {};
+                   for (const key in keyToHeaderMap) {
+                       const headerName = keyToHeaderMap[key];
+                       const colIndex = headerMap[headerName];
+                       if (colIndex !== undefined) {
+                           panelLegend[panelId][key] = String(row[colIndex] || '').trim();
+                       } else {
+                           panelLegend[panelId][key] = ''; // Default to empty string if column not found
+                       }
                    }
                }
            }
