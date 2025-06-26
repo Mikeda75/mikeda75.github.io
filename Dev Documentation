@@ -1,0 +1,214 @@
+# Panel Optimizer - Functional Specification (Version 3.0)
+
+## Objective
+This document provides a comprehensive functional specification for the Panel Form Reuse Schedule Generator (`paneloptimizerfinal.html`). It details the user interface, core logic, data structures, and output formats. The application is a standalone HTML file with embedded CSS and JavaScript, designed to help manufacturing teams optimize the use of panel casting forms.
+
+---
+
+## Part 1: Application Flow and Page Descriptions
+
+The application is a single-page web app that dynamically displays different "pages" or "views" to guide the user through a sequential workflow. This section describes each view in the order a user would encounter them.
+
+### 1.1. Page 1: Initial Input (`#input-container`)
+This is the landing page of the application.
+
+*   **Purpose**: To collect the primary project data from the user.
+*   **Content**:
+    *   A file input control (`#file-input`) for uploading an Excel (.xlsx) or CSV (.csv) file containing the panel legend and casting schedule.
+    *   Instructions on the required file format and sheet names.
+    *   A link to a Google Sheets template to help users format their data correctly.
+*   **User Navigation**:
+    *   The user selects a file.
+    *   Once a file is selected, the **"Generate Schedule"** button is enabled.
+    *   Clicking **"Generate Schedule"** parses the file and navigates the user to the Data Review page.
+
+### 1.2. Page 2: Data Review (`#review-container`)
+This page allows the user to validate the data parsed from their uploaded file.
+
+*   **Purpose**: To ensure the application has correctly interpreted the project information, panel legend, and casting schedule before running the core optimization logic.
+*   **Content**:
+    *   A summary of the parsed "Project Information".
+    *   A table displaying the "Panel Legend".
+    *   A table displaying the "Casting Schedule".
+*   **User Navigation**:
+    *   Clicking the **"Back"** button returns the user to the Initial Input page.
+    *   Clicking the **"Confirm and Generate Schedule"** button proceeds to the Optimization Configuration page.
+
+### 1.3. Page 3: Optimization Configuration (`#casting-config-container`)
+This optional page allows the user to fine-tune the parameters for the scheduling algorithm.
+
+*   **Purpose**: To allow input of constraints and pre-existing assets that affect how the schedule is optimized.
+*   **Content**:
+    *   **Constraints**: Optional number inputs for "Max Form Length" and "Max Form Width" for any *new* forms that need to be created.
+    *   **Pre-existing Forms**: An interface to declare the dimensions (width, length) and quantity of any forms the user already has on hand.
+*   **User Navigation**:
+    *   Clicking **"Back to Review"** returns the user to the Data Review page.
+    *   Clicking **"Confirm and Generate Schedule"** runs the main scheduling algorithm and navigates the user to the primary Schedule Output page.
+
+### 1.4. Page 4: Schedule Output (`#output`)
+This is the main results page, displaying the optimized form reuse schedule.
+
+*   **Purpose**: To present the detailed, cast-by-cast plan for form construction and reuse.
+*   **Content**:
+    *   A summary of the initial form inventory (if any).
+    *   For each cast, a detailed table showing which forms to `Reuse`, which to build `New`, and which to `Store`. It includes quantities, panel dimensions, and specific modification notes for the production team.
+    *   An "Explanation" section describing why forms were stored.
+    *   A summary of the total number of forms in the inventory at the end of each cast.
+*   **User Navigation (via `#output-controls`)**:
+    *   **"Start Over"**: Resets the entire application and returns to the Initial Input page.
+    *   **"Back to Review"**: Returns to the Data Review page.
+    *   **"Print Schedule"**: Opens the browser's print dialog for the schedule.
+    *   **"Generate Tracking Sheet"**: Navigates to the Tracking Sheet page.
+    *   **"Generate Stickers"**: Navigates to the Sticker Settings page.
+
+### 1.5. Page 5: Tracking Sheet (`#tracking-sheet-container`)
+This page provides a printable quality control checklist for every panel produced.
+
+*   **Purpose**: For quality control and physical tracking of each panel instance throughout the manufacturing process.
+*   **Content**: A series of tables, one for each cast, listing every unique panel instance (e.g., `P21.01`, `P21.02`) and providing empty columns for QC check-offs (`Mill QC`, `Formout QC`, etc.).
+*   **User Navigation**:
+    *   **"Back to Schedule"**: Returns to the Schedule Output page.
+    *   **"Print Tracking Sheet"**: A dynamically added button that opens the browser's print dialog.
+
+### 1.6. Page 6: Sticker Settings (`#sticker-settings-container`)
+This page allows the user to configure the layout of printable labels.
+
+*   **Purpose**: To match the sticker output to the specific dimensions of the user's label paper (e.g., Avery 5160).
+*   **Content**: Input fields for sticker width, height, columns/rows per sheet, margins, and gaps.
+*   **User Navigation**:
+    *   **"Cancel"**: Aborts sticker generation and returns to the Schedule Output page.
+    *   **"Generate & View Stickers"**: Applies the settings and navigates to the Sticker Sheet page.
+
+### 1.7. Page 7: Sticker Sheet (`#sticker-sheet-container`)
+This page displays the final, printable stickers.
+
+*   **Purpose**: To provide a ready-to-print sheet of labels for affixing to physical panels.
+*   **Content**: A visual representation of one or more 8.5" x 11" sheets with stickers laid out in a grid according to the user's settings. Each sticker contains the project name, unique panel ID, dimensions, finish, color, and QC checkboxes.
+*   **User Navigation**:
+    *   **"Back to Schedule"**: Returns to the Schedule Output page.
+    *   **"Print Stickers"**: A dynamically added button that opens the browser's print dialog.
+
+---
+
+## Part 2: Input Data Structures
+
+### 2.1. Panel Legend
+This data defines the properties of each unique panel type.
+
+*   **Structure**: A collection (dictionary/map) where the key is the `Panel ID` (e.g., "P21").
+*   **Properties for each Panel**:
+    *   `length` (string, e.g., "107 1/4\"")
+    *   `width` (string, e.g., "48 1/4\"")
+    *   `thickness` (string)
+    *   `castingType` (string)
+    *   `finish` (string)
+    *   `color` (string)
+    *   `comments` (string)
+
+### 2.2. Casting Schedule
+This data defines the sequence of casting events and the panels required for each.
+
+*   **Structure**: An array of "cast" objects. Each object represents one cast.
+*   **Cast Object**: A dictionary where keys are `Panel ID`s and values are the integer quantity required for that cast.
+    *   Example: `[{ "P21": 4, "P35": 4 }, { "P6": 3, "P14": 3 }]` represents two casts.
+
+### 2.3. File Parsing
+*   **`parseDim` function**: A utility function parses dimension strings (e.g., `10' 1/2"`) into a single numerical value in inches for calculations.
+*   **Excel Parsing (`parseExcelData`)**:
+    *   Uses the `xlsx.full.min.js` library.
+    *   Identifies sheets with names containing "panel legend" and "casting schedule" (case-insensitive).
+    *   Converts sheet data to JSON and maps it to the structures defined above.
+*   **CSV Parsing (`parseCsv`)**:
+    *   Manually processes the CSV text, looking for "Panel Legend" and "Casting Schedule" headers to separate the data sections.
+*   **Fallback**: If a casting schedule is not found in the input file, a hardcoded fallback schedule is used for demonstration purposes.
+*   **Internal Code Structure**: While the application is a single HTML file, the JavaScript is internally organized into logical modules for clarity and maintainability:
+    *   **App State & Initialization**: Manages global state (`appState`) and initial variables.
+    *   **Data Parsing**: Contains functions (`parseDim`, `parseExcelData`, `parseCsv`) responsible for interpreting user-uploaded files.
+    *   **Core Scheduling Logic**: Includes the primary algorithm (`generateSchedule`) and the intelligent form sizing function (`findOptimalFormSize`).
+    *   **UI & Output Generation**: Functions dedicated to rendering data to the screen (`displayReviewData`, `generateStickers`, `generateTrackingSheet`).
+    *   **Event Listeners & UI Handlers**: A dedicated section that attaches all event listeners (`click`, `change`) to DOM elements and handles user interactions.
+
+---
+
+## Part 3: Core Logic and Scheduling Algorithm
+
+This section details the intelligent logic used to generate the optimized schedule.
+
+### 3.1. State Management
+The application maintains a state of the `formInventory` throughout the process.
+
+*   **Form Object**: Each form in the inventory is an object with properties like:
+    *   `id`: A unique identifier.
+    *   `formLength`: The permanent, as-built length of the form.
+    *   `initialWidth`: The permanent, as-built width of the form.
+    *   `lastUsedFor`: The Panel ID this form was last used to cast.
+    *   ...and other properties for tracking its use.
+*   **Sequential Processing**: The schedule is generated cast-by-cast. The ending form inventory from Cast N becomes the starting inventory for Cast N+1.
+
+### 3.2. Form Allocation per Cast
+For each panel required in a cast, the algorithm attempts to find a suitable form from the pool of available forms.
+
+1.  **Filter Suitable Forms**: First, it identifies all available forms that can physically accommodate the required panel (i.e., `formLength >= requiredLength` and `initialWidth >= requiredWidth`).
+2.  **Scoring and Selection**: If suitable forms exist, it scores each one to find the "best" fit. The score is designed to minimize waste.
+    *   `score = (form.formLength * form.initialWidth) - (requiredLength * requiredWidth)`
+    *   Lower scores are better.
+    *   Large bonuses (score reduction) are given for exact length and width matches to prioritize them heavily.
+    *   The available form with the lowest score is selected for reuse.
+3.  **New Form Creation**: If no suitable form is found in the inventory, a new form must be created.
+
+### 3.3. Optimal New Form Sizing (`findOptimalFormSize`)
+Instead of just building a form for the immediate need, the algorithm intelligently determines the best dimensions for a new form.
+
+*   **Forward-Looking Analysis**: When a new form is needed for `Panel A`, the algorithm analyzes **all panels remaining in the current cast** AND **all panels in all future casts**.
+*   **Goal**: To find a single `length` and `width` for the new form that will be able to produce the maximum number of these future panels, thereby maximizing its reusability.
+*   **Process**:
+    1.  It gathers all unique lengths and widths from the pool of future panels that are within the user-defined constraints.
+    2.  It iterates through every possible combination of these unique lengths and widths.
+    3.  For each combination (a potential new form size), it calculates how many of the future panels it could accommodate.
+    4.  It selects the form size that:
+        *   **Priority 1**: Covers the most future panels.
+        *   **Priority 2**: Has the smallest total area (to minimize material cost).
+        *   **Priority 3**: Has the smallest "filler" area (to minimize waste).
+*   **Result**: This logic ensures that new forms are not single-use but are built to be valuable, reusable assets for the rest of the project.
+
+---
+
+## Part 4: Output Generation
+
+The application can generate three distinct types of outputs.
+
+### 4.1. Form Reuse Schedule
+This is the primary output, providing a detailed plan for each cast.
+
+*   **Structure**: For each cast, a block is generated containing:
+    1.  A heading (`<h3>Cast X</h3>`).
+    2.  A summary table.
+    3.  An explanation of stored forms.
+    4.  A statement of the ending form inventory count.
+*   **Summary Table Columns**:
+    *   `Action / Status Detail`: Describes the action (e.g., `Reuse (P35 -> P2)`, `New (for P21)`, `Store`).
+    *   `Qty`: The quantity of forms the action applies to.
+    *   `Dimensions`: The dimensions of the *panel* being produced.
+    *   `Modification Notes`: Instructions for the production team (e.g., `Adjust fillers to...`, `New form built...`).
+*   **Aggregation**: Actions are aggregated. If three identical panels are made on three identical forms, it's shown as one row with `Qty: 3`.
+
+### 4.2. Panel Tracking Sheet
+This output is for quality control and tracking individual panels.
+
+*   **Unique IDs**: The generator first assigns a unique, sequential ID to every single panel instance across all casts (e.g., `P21.01`, `P21.02`).
+*   **Structure**: A table is generated for each cast.
+*   **Table Columns**:
+    *   `Panel Unique ID`: The unique identifier.
+    *   QC Checkpoint Columns: `Mill QC`, `Formout QC`, `Casting QC`, `Wash QC`, `Seal QC`, `Crate QC`, `Pack QC`. These are left blank for manual check-offs.
+
+### 4.3. Panel Stickers
+This output generates sheets of printable labels for physical panels.
+
+*   **Sticker Settings**: Before generation, the user can configure the sticker layout to match their label paper (sticker dimensions, columns, rows, margins, gaps).
+*   **Content**: Each sticker contains key information:
+    *   Project Name
+    *   Panel Unique ID (e.g., `P21.01`)
+    *   Dimensions (L, W, T)
+    *   Finish and Color
+    *   QC Check-off boxes (M, F, C, W)
+*   **Layout**: The stickers are arranged in a grid on standard 8.5" x 11" sheets, ready for printing. The layout is dynamically generated using CSS based on user settings.

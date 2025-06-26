@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Form Reuse Schedule Generator</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+        }
+        #output {
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-top: 20px;
+            white-space: pre-wrap; /* To respect markdown formatting */
+        }
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 1em;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        h3 {
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+        #review-container {
+            display: none;
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        .review-section {
+            margin-bottom: 20px;
+        }
+        #header-container {
+            position: sticky;
+            top: 0;
+            background-color: white;
+            padding: 20px 20px 10px 20px;
+            margin: -20px -20px 0 -20px;
+            border-bottom: 1px solid #ccc;
+            z-index: 100;
+            position: relative; /* For positioning the button */
+        }
+        #review-actions {
+            display: none; /* Hidden by default */
+            position: sticky;
+            top: 120px; /* Fallback, will be set by JS */
+            background-color: #f8f8f8;
+            padding: 10px 20px;
+            margin: 0 -20px 15px -20px; /* Counteract body padding */
+            border-bottom: 1px solid #ddd;
+            z-index: 99;
+        }
+        .input-option {
+            margin-bottom: 20px;
+        }
+        .paste-area {
+            margin-top: 10px;
+        }
+        .paste-area label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .paste-area textarea {
+            width: 98%;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .paste-area input[type="number"] {
+            width: 98%;
+            padding: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .action-buttons {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+        }
+        #generate-schedule {
+            padding: 15px 25px;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        #generate-schedule:disabled {
+            background-color: #cccccc;
+            color: #666666;
+            cursor: not-allowed;
+        }
+        @media print {
+           body {
+               padding: 0;
+               margin: 0;
+               font-size: 10pt; /* Reduce base font size for print */
+           }
+           #header-container, #review-actions, #review-container {
+               display: none;
+           }
+           #output {
+               border: none;
+               padding: 0;
+               margin: 0;
+               white-space: normal;
+           }
+           .cast-schedule-print-container {
+               page-break-after: always; /* Ensure each cast is on a new page */
+               page-break-inside: avoid; /* Still try to avoid breaking a single large cast */
+           }
+           #output .cast-schedule-print-container:last-of-type {
+               page-break-after: avoid; /* Prevent extra blank page at the end */
+           }
+           .explanation-section, #print-note {
+               display: none !important; /* Hide explanations and print note in print view */
+           }
+           h3, h4 {
+               page-break-after: avoid; /* Keep header with the table */
+               font-size: 12pt;
+           }
+           table.schedule-table {
+               width: 100% !important;
+               font-size: 8pt; /* Further reduce font size */
+           }
+           .schedule-table tr {
+               page-break-inside: avoid; /* Critical: Don't split rows */
+           }
+           .schedule-table th, .schedule-table td {
+               padding: 2px 4px; /* Reduce padding */
+           }
+           .schedule-table th:nth-child(1) { width: 35%; } /* Action */
+           .schedule-table th:nth-child(2) { width: 5%; }  /* Qty */
+           .schedule-table th:nth-child(3) { width: 30%; } /* Dimensions */
+           .schedule-table th:nth-child(4) { width: 30%; } /* Notes */
+           p {
+               font-size: 8pt;
+           }
+           @page {
+               size: letter landscape;
+               margin: 0.25in; /* Reduce page margins */
+           }
+        }
+     </style>
+ </head>
+ <body>
+    <div id="input-container">
+        <div id="header-container">
+            <h1>Panel Form Reuse Schedule</h1>
+            <div class="action-buttons">
+                <button id="generate-schedule" disabled>Generate Schedule</button>
+            </div>
+
+            <div class="input-option">
+                <h3>Option 1: Upload a File</h3>
+                <p>Select a single CSV file containing both the "Panel Legend" and "Casting Schedule".</p>
+                <p><small><b>To export from Google Sheets:</b> Go to File > Download > Comma Separated Values (.csv).<br><b>To export from Excel:</b> Go to File > Save As > and choose "CSV (Comma delimited) (*.csv)" as the file type.</small></p>
+                <input type="file" id="csv-file-input" accept=".csv">
+            </div>
+
+            <hr>
+
+            <div class="input-option">
+                <h3>Option 2: Paste from Spreadsheet</h3>
+                <p>Copy the data directly from Google Sheets or Excel and paste it into the appropriate text boxes below.</p>
+                <p><small><b>To get the data from Google Sheets or Excel:</b> Simply select the cells you want to copy, and then use Ctrl+C (or Cmd+C on Mac) to copy them to your clipboard.</small></p>
+                
+                <div class="paste-area">
+                    <label for="panel-legend-paste"><strong>Panel Legend</strong></label>
+                    <textarea id="panel-legend-paste" rows="8" placeholder="e.g.&#10;P1,101 3/4",13 3/8"&#10;P2,101 3/4",19 1/2""></textarea>
+                </div>
+
+                <div class="paste-area">
+                    <label for="casting-schedule-paste"><strong>Casting Schedule</strong> (Optional - if blank, a default schedule will be used)</label>
+                    <textarea id="casting-schedule-paste" rows="8" placeholder="e.g.&#10;P21,4,P35,4,P41,4&#10;P21,4,P35,4,P41,4"></textarea>
+                </div>
+            </div>
+
+            <div class="input-option">
+                <h3>Constraints (Optional)</h3>
+                <p>Set a maximum length and/or width for newly created forms. This can be useful to match available material sizes.</p>
+                <div class="paste-area">
+                    <label for="max-length-input"><strong>Max Form Length (inches)</strong></label>
+                    <input type="number" id="max-length-input" placeholder="e.g., 240">
+                </div>
+                <div class="paste-area">
+                    <label for="max-width-input"><strong>Max Form Width (inches)</strong></label>
+                    <input type="number" id="max-width-input" placeholder="e.g., 96">
+                </div>
+            </div>
+
+        </div>
+    </div>
+    <div id="output-controls" style="display: none; padding: 10px; border-bottom: 1px solid #ccc;">
+        <button id="start-over">Start Over</button>
+        <button id="copy-for-google-docs" disabled>Copy for Google Docs</button>
+        <button id="print-schedule-button" disabled>Print Schedule</button>
+        <small id="print-note" style="display: none;">(For best results, use your browser's 'Fit to page' or scale options in the print preview)</small>
+    </div>
+    
+    <div id="review-actions">
+        <button id="confirm-generate">Confirm and Generate Schedule</button>
+        <button id="cancel-review">Cancel</button>
+    </div>
+    <div id="review-container">
+        <h2>Review Parsed Data</h2>
+        <p>Please review the parsed Panel Legend and Casting Schedule below. If it looks correct, click "Confirm and Generate Schedule".</p>
+        <div class="review-section">
+            <h3>Panel Legend</h3>
+            <div id="review-panel-legend"></div>
+        </div>
+        <div class="review-section">
+            <h3>Casting Schedule</h3>
+            <div id="review-casting-schedule"></div>
+        </div>
+    </div>
+
+    <div id="output">
+        <p>Please upload a CSV file and click "Generate Schedule".</p>
+    </div>
+
+    <script>
+        let appState = {
+            panelLegend: null,
+            castingSchedule: null
+        };
+
+        const fallbackCastingSchedule = [
+            { "P21": 4, "P35": 4, "P41": 4 }, { "P21": 4, "P35": 4, "P41": 4 }, { "P6": 3, "P14": 3, "P21": 1, "P35": 1, "P41": 3, "P42": 3 }, { "P2": 1, "P4": 2, "P10": 1, "P12": 2, "P18": 1, "P21": 3, "P28": 1, "P35": 3 }, { "P7": 3, "P15": 3, "P22": 3, "P30": 3, "P31": 1 }, { "P7": 2, "P15": 2, "P22": 2, "P27": 1, "P30": 2, "P31": 1, "P49": 1, "P50": 1, "P51": 1 }, { "P7": 3, "P15": 3, "P22": 3, "P23": 1, "P30": 1, "P36": 1, "P43": 1 }, { "P6": 2, "P14": 2, "P23": 2, "P30": 1, "P36": 2, "P42": 2, "P43": 2 }, { "P6": 3, "P7": 1, "P14": 2, "P15": 1, "P16": 1, "P22": 1, "P26": 1, "P40": 1, "P42": 2, "P48": 1 }, { "P10": 1, "P14": 4, "P20": 1, "P29": 1, "P42": 2, "P52": 2 }, { "P3": 1, "P13": 1, "P23": 3, "P25": 1, "P26": 2, "P36": 3, "P43": 2, "P52": 2 }, { "P23": 3, "P33": 2, "P36": 3, "P37": 2, "P43": 2, "P44": 1 }, { "P1": 1, "P5": 1, "P9": 1, "P11": 1, "P17": 1, "P32": 1, "P33": 1, "P34": 1, "P37": 1, "P38": 1, "P39": 1, "P44": 2, "P45": 1, "P46": 1 }, { "P11": 2, "P15": 2, "P36": 3, "P38": 2, "P47": 3 }, { "P15": 6, "P36": 6 }, { "P15": 4, "P36": 3 }
+        ];
+
+        function parseDim(dimStr) {
+            if (typeof dimStr !== 'string') return 0;
+            let total = 0;
+            const parts = dimStr.replace(/"/g, '').trim().split(' ');
+            parts.forEach(part => {
+                if (part.includes('/')) {
+                    const fraction = part.split('/');
+                    total += parseInt(fraction[0], 10) / parseInt(fraction[1], 10);
+                } else if (part) {
+                    total += parseInt(part, 10);
+                }
+            });
+            return total;
+        }
+
+        function parseCsv(csvText) {
+            const lines = csvText.trim().split(/\r?\n/);
+            const legendHeaderIndex = lines.findIndex(line => line.toLowerCase().includes('panel legend'));
+            const scheduleHeaderIndex = lines.findIndex(line => line.toLowerCase().includes('casting schedule'));
+
+            let panelLegendLines = [];
+            let castingScheduleLines = [];
+
+            if (legendHeaderIndex !== -1) {
+                if (scheduleHeaderIndex !== -1) {
+                    panelLegendLines = lines.slice(legendHeaderIndex + 1, scheduleHeaderIndex);
+                    castingScheduleLines = lines.slice(scheduleHeaderIndex + 1);
+                } else {
+                    panelLegendLines = lines.slice(legendHeaderIndex + 1);
+                }
+            } else {
+                // No legend header, assume whole file is legend, first line is header
+                panelLegendLines = lines.slice(1);
+            }
+
+            const panelLegend = {};
+            panelLegendLines.forEach(line => {
+                if (!line.trim()) return;
+                const parts = line.split(',');
+                if (parts.length >= 3) {
+                    const panelId = parts[0].trim();
+                    if (panelId) {
+                        const lengthRaw = parts[1].trim();
+                        const widthRaw = parts[2].trim();
+                        const length = lengthRaw.substring(1, lengthRaw.length - 1).replace(/""/g, '"');
+                        const width = widthRaw.substring(1, widthRaw.length - 1).replace(/""/g, '"');
+                        panelLegend[panelId] = { length, width };
+                    }
+                }
+            });
+
+            let castingSchedule = [];
+            if (castingScheduleLines.length > 0) {
+                castingScheduleLines.forEach(line => {
+                    if (!line.trim()) return;
+                    const cast = {};
+                    const parts = line.split(',');
+                    for (let i = 0; i < parts.length; i += 2) {
+                        const panelId = parts[i].trim();
+                        const qty = parseInt(parts[i+1].trim(), 10);
+                        if (panelId && !isNaN(qty)) {
+                            cast[panelId] = qty;
+                        }
+                    }
+                    if (Object.keys(cast).length > 0) {
+                        castingSchedule.push(cast);
+                    }
+                });
+            }
+            
+            if (castingSchedule.length === 0) {
+                castingSchedule = fallbackCastingSchedule;
+            }
+            
+            return { panelLegend, castingSchedule };
+        }
+
+        function findOptimalFormSize(panelLegend, allPanels, constraints = {}, minimums = {}) {
+            const { maxLength = Infinity, maxWidth = Infinity } = constraints;
+            const { minLength = 0, minWidth = 0 } = minimums;
+
+            if (allPanels.length === 0) {
+                const optimalLength = Math.min(minLength, maxLength);
+                const optimalWidth = Math.min(minWidth, maxWidth);
+                return { optimalLength: optimalLength, optimalWidth: Math.max(optimalWidth, 50) };
+            }
+
+            const panelDimensions = allPanels.map(panelId => {
+                const details = panelLegend[panelId];
+                if (!details) return null;
+                return {
+                    id: panelId,
+                    length: parseDim(details.length),
+                    width: parseDim(details.width)
+                };
+            }).filter(p => p !== null);
+
+            if (panelDimensions.length === 0) {
+                const optimalLength = Math.min(minLength, maxLength);
+                const optimalWidth = Math.min(minWidth, maxWidth);
+                return { optimalLength: optimalLength, optimalWidth: Math.max(optimalWidth, 50) };
+            }
+
+            const uniqueLengths = [...new Set(panelDimensions.map(p => p.length))]
+                .filter(l => l <= maxLength)
+                .sort((a, b) => a - b);
+            const uniqueWidths = [...new Set(panelDimensions.map(p => p.width))]
+                .filter(w => w <= maxWidth)
+                .sort((a, b) => a - b);
+
+            let bestCombination = {
+                length: 0,
+                width: 0,
+                coveredPanels: -1,
+                area: Infinity,
+                fillerArea: Infinity
+            };
+
+            for (const testLength of uniqueLengths) {
+                for (const testWidth of uniqueWidths) {
+                    if (testLength < minLength || testWidth < minWidth) continue;
+
+                    const fittingPanels = panelDimensions.filter(p => p.length <= testLength && p.width <= testWidth);
+                    const coveredPanels = fittingPanels.length;
+
+                    if (coveredPanels === 0) continue;
+
+                    const area = testLength * testWidth;
+                    const totalPanelArea = fittingPanels.reduce((sum, p) => sum + (p.length * p.width), 0);
+                    const fillerArea = (coveredPanels * area) - totalPanelArea;
+
+                    if (coveredPanels > bestCombination.coveredPanels) {
+                        bestCombination = { length: testLength, width: testWidth, coveredPanels, area, fillerArea };
+                    } else if (coveredPanels === bestCombination.coveredPanels) {
+                        if (area < bestCombination.area) {
+                            bestCombination = { length: testLength, width: testWidth, coveredPanels, area, fillerArea };
+                        } else if (area === bestCombination.area) {
+                            if (fillerArea < bestCombination.fillerArea) {
+                                bestCombination = { length: testLength, width: testWidth, coveredPanels, area, fillerArea };
+                            }
+                        }
+                    }
+                }
+            }
+
+            let finalLength = bestCombination.length;
+            let finalWidth = bestCombination.width;
+
+            if (finalLength === 0) { // No suitable size found, use minimums capped by constraints
+                finalLength = Math.min(minLength, maxLength);
+                finalWidth = Math.min(minWidth, maxWidth);
+            }
+            
+            console.log('Optimal form size calculated:', { length: finalLength, width: finalWidth });
+            
+            return {
+                optimalLength: finalLength,
+                optimalWidth: Math.max(finalWidth, 50)
+            };
+        }
+
+        function generateSchedule(panelLegend, castingSchedule) {
+            const maxLengthInput = document.getElementById('max-length-input').value;
+            const maxWidthInput = document.getElementById('max-width-input').value;
+            const constraints = {
+                maxLength: maxLengthInput ? parseInt(maxLengthInput, 10) : Infinity,
+                maxWidth: maxWidthInput ? parseInt(maxWidthInput, 10) : Infinity,
+            };
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = ''; // Clear previous output
+            document.getElementById('copy-for-google-docs').disabled = true;
+            document.getElementById('print-schedule-button').disabled = true;
+            document.getElementById('print-note').style.display = 'none';
+            let formInventory = []; // { id, formLength, initialWidth, lastUsedFor, lastUsedPanelWidth, lastUsedPanelLengthStr, lastUsedPanelWidthStr }
+            let nextFormId = 1;
+            let fullOutput = '';
+
+            castingSchedule.forEach((cast, castIndex) => {
+                const castNumber = castIndex + 1;
+                let availableForms = [...formInventory];
+                const usedThisCast = [];
+                const productionActions = [];
+                const storeActions = [];
+
+                const requiredPanels = cast;
+                
+                const requiredPanelsList = [];
+                for (const panelId in requiredPanels) {
+                    if (!panelLegend[panelId]) {
+                        console.warn(`Panel ID ${panelId} not found in legend. Skipping.`);
+                        continue;
+                    }
+                    for (let i = 0; i < requiredPanels[panelId]; i++) {
+                        requiredPanelsList.push(panelId);
+                    }
+                }
+
+
+                requiredPanelsList.forEach((panelId, panelIndex) => {
+                    const panelDetails = panelLegend[panelId];
+                    const requiredLength = parseDim(panelDetails.length);
+                    const requiredWidth = parseDim(panelDetails.width);
+                    let formFoundAndUsed = false;
+
+                    // --- Form Selection Logic ---
+                    let bestFormToReuse = null;
+                    const suitableForms = availableForms.filter(f => f.formLength >= requiredLength && f.initialWidth >= requiredWidth);
+
+                    if (suitableForms.length > 0) {
+                        suitableForms.forEach(f => {
+                            f.score = (f.formLength * f.initialWidth) - (requiredLength * requiredWidth);
+                            if (f.formLength === requiredLength) f.score -= 10000;
+                            if (f.initialWidth === requiredWidth) f.score -= 1000;
+                        });
+                        suitableForms.sort((a, b) => a.score - b.score);
+                        bestFormToReuse = suitableForms[0];
+                    }
+
+                    if (bestFormToReuse) {
+                        const form = bestFormToReuse;
+                        let note = '';
+                        if (form.formLength === requiredLength && form.initialWidth === requiredWidth) {
+                            note = 'Exact form match. No modification needed.';
+                        } else if (form.formLength === requiredLength) {
+                            note = `Adjust fillers to ${panelDetails.width} width.`;
+                        } else if (form.initialWidth === requiredWidth) {
+                            note = `Adjust fillers to ${panelDetails.length} length.`;
+                        } else {
+                            note = `Adjust fillers to ${panelDetails.length} length and ${panelDetails.width} width.`;
+                        }
+                        
+                        productionActions.push({
+                            action: `Reuse (${form.lastUsedFor} -> <strong>${panelId}</strong>)`,
+                            qty: 1,
+                            dimensions: `${panelDetails.length} L x ${panelDetails.width} W`,
+                            notes: note
+                        });
+                        form.lastUsedFor = panelId;
+                        form.lastUsedPanelWidth = requiredWidth;
+                        form.lastUsedPanelLengthStr = panelDetails.length;
+                        form.lastUsedPanelWidthStr = panelDetails.width;
+                        usedThisCast.push(form);
+                        availableForms = availableForms.filter(f => f.id !== form.id);
+                        formFoundAndUsed = true;
+                    }
+
+                    // Priority 3: New Creation
+                    if (!formFoundAndUsed) {
+                        // Dynamically find optimal size for a new form based on remaining panels
+                        const remainingForThisCast = requiredPanelsList.slice(panelIndex);
+                        
+                        const futureCasts = castingSchedule.slice(castIndex + 1);
+                        const futurePanels = [];
+                        futureCasts.forEach(futureCast => {
+                            for (const pId in futureCast) {
+                                for (let i = 0; i < futureCast[pId]; i++) {
+                                    futurePanels.push(pId);
+                                }
+                            }
+                        });
+
+                        const allRemainingPanels = remainingForThisCast.concat(futurePanels);
+                        const { optimalLength, optimalWidth } = findOptimalFormSize(
+                            panelLegend,
+                            allRemainingPanels,
+                            constraints,
+                            { minLength: requiredLength, minWidth: requiredWidth }
+                        );
+
+                        const newFormLength = optimalLength;
+                        const newFormWidth = optimalWidth;
+
+                        const newForm = {
+                            id: nextFormId++,
+                            formLength: newFormLength,
+                            initialWidth: newFormWidth,
+                            lastUsedFor: panelId,
+                            lastUsedPanelWidth: requiredWidth,
+                            lastUsedPanelLengthStr: panelDetails.length,
+                            lastUsedPanelWidthStr: panelDetails.width,
+                        };
+                        formInventory.push(newForm);
+                        usedThisCast.push(newForm);
+                        
+                        let note = `New form built (${newFormLength}" L x ${newFormWidth}" W). Set fillers for ${panelDetails.length} L x ${panelDetails.width} W.`;
+                        if (requiredLength > newFormLength || requiredWidth > newFormWidth) {
+                            note += ` <strong>WARNING: Panel may not fit. Required: ${requiredLength}"x${requiredWidth}". Form constrained to ${newFormLength}"x${newFormWidth}".</strong>`;
+                        }
+
+                        productionActions.push({
+                            action: `New (for <strong>${panelId}</strong>)`,
+                            qty: 1,
+                            dimensions: `${panelDetails.length} L x ${panelDetails.width} W`,
+                            notes: note
+                        });
+                    }
+                });
+                
+                formInventory = [...usedThisCast, ...availableForms];
+
+                // Handle stored forms
+                availableForms.forEach(form => {
+                    storeActions.push({
+                        action: `Store (Last used for <strong>${form.lastUsedFor}</strong>)`,
+                        qty: 1,
+                        dimensions: `Form: ${form.lastUsedPanelLengthStr} L x ${form.initialWidth}" W`,
+                        notes: "Store form; no modification."
+                    });
+                });
+
+                // --- Generate Output for this Cast ---
+                fullOutput += `<div class="cast-schedule-print-container">`;
+                fullOutput += `<h3>Cast ${castNumber}</h3>`;
+                fullOutput += `
+                    <table class="schedule-table">
+                        <tr>
+                            <th>Action / Status Detail</th>
+                            <th>Qty</th>
+                            <th>Dimensions</th>
+                            <th>Modification Notes</th>
+                        </tr>
+                        <tr><td colspan="4"><strong>--- Forms Put into Production ---</strong></td></tr>
+                `;
+                // Aggregate actions
+                const aggregatedActions = {};
+                productionActions.forEach(pa => {
+                    const key = `${pa.action}|${pa.dimensions}|${pa.notes}`;
+                    if (!aggregatedActions[key]) {
+                        aggregatedActions[key] = { ...pa, qty: 0 };
+                    }
+                    aggregatedActions[key].qty += pa.qty;
+                });
+
+                for(const key in aggregatedActions) {
+                    const action = aggregatedActions[key];
+                    fullOutput += `<tr><td>${action.action}</td><td>${action.qty}</td><td>${action.dimensions}</td><td>${action.notes}</td></tr>`;
+                }
+
+                if (storeActions.length > 0) {
+                    fullOutput += `<tr><td colspan="4"><strong>--- Store Forms ---</strong></td></tr>`;
+                    
+                    const aggregatedStorage = {};
+                    storeActions.forEach(sa => {
+                        const key = `${sa.action}|${sa.dimensions}|${sa.notes}`;
+                        if (!aggregatedStorage[key]) {
+                            aggregatedStorage[key] = { ...sa, qty: 0 };
+                        }
+                        aggregatedStorage[key].qty += sa.qty;
+                    });
+
+                    for(const key in aggregatedStorage) {
+                        const action = aggregatedStorage[key];
+                        fullOutput += `<tr><td>${action.action}</td><td>${action.qty}</td><td>${action.dimensions}</td><td>${action.notes}</td></tr>`;
+                    }
+                }
+
+                fullOutput += `</table>`;
+
+                // Explanation
+                fullOutput += `<div class="explanation-section">`;
+                fullOutput += `<h4>Explanation of Stored Forms</h4>`;
+                if (storeActions.length > 0) {
+                    const totalStored = storeActions.reduce((sum, action) => sum + action.qty, 0);
+                    fullOutput += `<p>* (${totalStored}) forms were stored because there were no remaining panel requirements in this cast that could be produced on them.</p>`;
+                } else {
+                    fullOutput += `<p>No forms were stored in this cast as all available forms were utilized for production.</p>`;
+                }
+                fullOutput += `</div>`;
+
+                // Inventory Summary
+                fullOutput += `<p><strong>Ending Form Inventory: ${formInventory.length} forms total.</strong></p>`;
+                fullOutput += `</div>`;
+                /*
+                fullOutput += `<h4>Current Form Inventory Details:</h4>`;
+                
+                const sortedInventory = [...formInventory].sort((a, b) => {
+                    if (b.formLength !== a.formLength) return b.formLength - a.formLength;
+                    if (b.initialWidth !== a.initialWidth) return b.initialWidth - a.initialWidth;
+                    return a.id - b.id;
+                });
+
+                let inventoryList = '<ul>';
+                sortedInventory.forEach(form => {
+                    inventoryList += `<li>Form ${form.id}: ${form.formLength}" L x ${form.initialWidth}" W (Last used for ${form.lastUsedFor})</li>`;
+                });
+                inventoryList += '</ul>';
+                fullOutput += inventoryList;
+
+                // Next Cast Requirements
+                fullOutput += `<h4>Required Panels for Next Cast:</h4>`;
+                if (castingSchedule[castIndex + 1]) {
+                    const nextCast = castingSchedule[castIndex + 1];
+                    let nextCastList = '<ul>';
+                    for (const panelId in nextCast) {
+                        nextCastList += `<li>${panelId}: ${nextCast[panelId]}</li>`;
+                    }
+                    nextCastList += '</ul>';
+                    fullOutput += nextCastList;
+                } else {
+                    fullOutput += "<p>No further castings scheduled.</p>";
+                }
+                */
+            });
+
+            document.getElementById('copy-for-google-docs').disabled = false;
+            document.getElementById('print-schedule-button').disabled = false;
+            document.getElementById('print-note').style.display = 'inline';
+            outputDiv.innerHTML = fullOutput;
+        }
+
+       function printSchedule() {
+           window.print();
+       }
+
+        async function copyForGoogleDocs() {
+            const html = document.getElementById('output').innerHTML;
+            const text = document.getElementById('output').innerText;
+
+            if (!navigator.clipboard || !navigator.clipboard.write) {
+                // Fallback for older browsers or non-secure contexts
+                const table = document.getElementById('clipboard-output');
+                const range = document.createRange();
+                range.selectNodeContents(table);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                try {
+                    const successful = document.execCommand('copy');
+                    if (successful) {
+                        alert('Schedule table copied to clipboard (using fallback method). You can now paste it into an empty Google Docs document.');
+                    } else {
+                        throw new Error('Copy command was unsuccessful');
+                    }
+                } catch (err) {
+                    console.error('Failed to copy table with fallback: ', err);
+                    alert('Could not automatically copy the table. Please select the output and copy it manually.');
+                }
+                selection.removeAllRanges();
+                return;
+            }
+
+            try {
+                const blobHtml = new Blob([html], { type: 'text/html' });
+                const blobText = new Blob([text], { type: 'text/plain' });
+                const clipboardItem = new ClipboardItem({
+                    'text/html': blobHtml,
+                    'text/plain': blobText,
+                });
+
+                await navigator.clipboard.write([clipboardItem]);
+                alert('Schedule table copied to clipboard. You can now paste it into an empty Google Docs document.');
+            } catch (err) {
+                console.error('Failed to copy table using modern API: ', err);
+                alert('Could not automatically copy the table. Please select the output and copy it manually.');
+            }
+        }
+
+        function displayReviewData() {
+            const { panelLegend, castingSchedule } = appState;
+            const legendDiv = document.getElementById('review-panel-legend');
+            const scheduleDiv = document.getElementById('review-casting-schedule');
+            
+            let legendHtml = '<table><tr><th>Panel ID</th><th>Length</th><th>Width</th></tr>';
+            for (const id in panelLegend) {
+                legendHtml += `<tr><td>${id}</td><td>${panelLegend[id].length}</td><td>${panelLegend[id].width}</td></tr>`;
+            }
+            legendHtml += '</table>';
+            legendDiv.innerHTML = legendHtml;
+
+            
+            let scheduleHtml = '<table><tr><th style="width:10%;">Cast #</th><th>Panels (Qty)</th></tr>';
+            castingSchedule.forEach((cast, index) => {
+                const panelList = Object.entries(cast)
+                    .map(([panelId, qty]) => `${panelId}: ${qty}`)
+                    .join(', ');
+                scheduleHtml += `<tr><td>${index + 1}</td><td>${panelList}</td></tr>`;
+            });
+            scheduleHtml += '</table>';
+            scheduleDiv.innerHTML = scheduleHtml;
+
+            document.getElementById('input-container').style.display = 'none';
+            const reviewActions = document.getElementById('review-actions');
+            reviewActions.style.top = `0px`; // No longer needs to be offset by header
+            reviewActions.style.display = 'block';
+
+            document.getElementById('review-container').style.display = 'block';
+            document.getElementById('output').style.display = 'none';
+        }
+
+        document.getElementById('generate-schedule').addEventListener('click', () => {
+            const legendPaste = document.getElementById('panel-legend-paste').value.trim();
+            const schedulePaste = document.getElementById('casting-schedule-paste').value.trim();
+            const fileInput = document.getElementById('csv-file-input');
+
+            let csvText = '';
+
+            if (legendPaste) {
+                // Priority 1: Use pasted text
+                csvText = "Panel Legend\n" + legendPaste;
+                if (schedulePaste) {
+                    csvText += "\nCasting Schedule\n" + schedulePaste;
+                }
+                processData(csvText);
+            } else if (fileInput.files.length > 0) {
+                // Priority 2: Use uploaded file
+                const file = fileInput.files[0];
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    csvText = event.target.result;
+                    processData(csvText);
+                };
+                reader.readAsText(file);
+            } else {
+                // No data provided
+                alert('Please either paste data into the text boxes or select a CSV file to upload.');
+                return;
+            }
+        });
+
+        function processData(csvText) {
+            const { panelLegend, castingSchedule } = parseCsv(csvText);
+            
+            if (Object.keys(panelLegend).length === 0) {
+                alert('Could not parse Panel Legend from the provided data.');
+                return;
+            }
+            appState.panelLegend = panelLegend;
+            appState.castingSchedule = castingSchedule;
+            displayReviewData();
+        }
+
+        function updateGenerateButtonState() {
+            const legendPaste = document.getElementById('panel-legend-paste').value.trim();
+            const fileInput = document.getElementById('csv-file-input');
+            const generateButton = document.getElementById('generate-schedule');
+
+            if (legendPaste || fileInput.files.length > 0) {
+                generateButton.disabled = false;
+            } else {
+                generateButton.disabled = true;
+            }
+        }
+
+        document.getElementById('confirm-generate').addEventListener('click', () => {
+            document.getElementById('review-actions').style.display = 'none';
+            document.getElementById('review-container').style.display = 'none';
+            document.getElementById('output').style.display = 'block';
+            document.getElementById('output-controls').style.display = 'block';
+            generateSchedule(appState.panelLegend, appState.castingSchedule);
+        });
+
+        document.getElementById('cancel-review').addEventListener('click', () => {
+            document.getElementById('review-actions').style.display = 'none';
+            document.getElementById('review-container').style.display = 'none';
+            document.getElementById('output').style.display = 'block';
+            document.getElementById('input-container').style.display = 'block';
+            // Optionally reset file input
+            document.getElementById('csv-file-input').value = '';
+        });
+
+        document.getElementById('panel-legend-paste').addEventListener('input', updateGenerateButtonState);
+        document.getElementById('csv-file-input').addEventListener('change', updateGenerateButtonState);
+        document.addEventListener('DOMContentLoaded', updateGenerateButtonState);
+
+        document.getElementById('copy-for-google-docs').addEventListener('click', copyForGoogleDocs);
+        document.getElementById('print-schedule-button').addEventListener('click', printSchedule);
+
+        document.getElementById('start-over').addEventListener('click', () => {
+            // Hide output and show input
+            document.getElementById('output').style.display = 'none';
+            document.getElementById('output-controls').style.display = 'none';
+            document.getElementById('input-container').style.display = 'block';
+
+            // Clear inputs
+            document.getElementById('panel-legend-paste').value = '';
+            document.getElementById('casting-schedule-paste').value = '';
+            document.getElementById('csv-file-input').value = '';
+
+            // Reset app state
+            appState.panelLegend = null;
+            appState.castingSchedule = null;
+            
+            // Reset output div
+            document.getElementById('output').innerHTML = '<p>Please upload a CSV file and click "Generate Schedule".</p>';
+        });
+    </script>
+</body>
+</html>
