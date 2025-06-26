@@ -1167,12 +1167,6 @@
                                 // With fillers, the best form is one that is slightly larger than the panel.
                                 // We prioritize exact dimension matches heavily, then the smallest waste area.
                                 f.score = (f.formLength * f.initialWidth) - (requiredLength * requiredWidth); // Lower score is better (less waste)
-                                if (f.formLength === requiredLength) f.score -= 10000; // Heavily prioritize exact length
-                                if (f.initialWidth === requiredWidth) f.score -= 1000; // Prioritize exact width
-                            } else {
-                                // Without fillers, we strictly want the smallest possible form that fits.
-                                // An exact match is perfect (score 0), otherwise we just want the smallest area.
-                                f.score = Infinity;
                                 if (f.formLength === requiredLength && f.initialWidth === requiredWidth) {
                                     f.score = 0; // Exact match is best.
                                 } else {
@@ -2366,4 +2360,215 @@
         }
 
         /**
-         * Resets the entire application UI to its initial state. This is used by
+         * Resets the entire application UI to its initial state. This is used by the
+         * "Start Over" button to clear all data and return to the file upload screen.
+         */
+        function resetToInitialView() {
+            document.getElementById('output').style.display = 'none';
+            document.getElementById('output-controls').style.display = 'none';
+            document.getElementById('input-container').style.display = 'block';
+            document.getElementById('file-input').value = '';
+            appState.panelLegend = null;
+            appState.castingSchedule = null;
+            document.getElementById('output').innerHTML = '<p>Please upload an Excel file and click "Generate Schedule".</p>';
+        }
+
+        // --- Event Listener Setup ---
+        // This function runs once the entire HTML document has been loaded and parsed.
+        // It's the main entry point for attaching all the interactive event handlers.
+        document.addEventListener('DOMContentLoaded', () => {
+            // Main Actions
+            document.getElementById('generate-schedule').addEventListener('click', handleFileSelect);
+            document.getElementById('load-sheet-from-url').addEventListener('click', loadDataFromGoogleSheet);
+           document.getElementById('confirm-generate').addEventListener('click', () => {
+
+               document.getElementById('review-actions').style.display = 'none';
+               document.getElementById('review-container').style.display = 'none';
+               document.getElementById('casting-config-container').style.display = 'block';
+           });
+
+            // Config View Actions
+           document.getElementById('back-to-review-from-config').addEventListener('click', () => {
+
+               document.getElementById('casting-config-container').style.display = 'none';
+               displayReviewData(); // Go back to review screen
+           });
+
+            document.getElementById('confirm-config-generate').addEventListener('click', () => {
+                document.getElementById('casting-config-container').style.display = 'none';
+                document.getElementById('output').style.display = 'block';
+                document.getElementById('output-controls').style.display = 'block';
+                generateSchedule(appState.panelLegend, appState.castingSchedule);
+            });
+
+            // Navigation & View Changes
+            document.getElementById('back-to-build-details-button').addEventListener('click', () => {
+                document.getElementById('output').style.display = 'none';
+                document.getElementById('output-controls').style.display = 'none';
+                document.getElementById('casting-config-container').style.display = 'block';
+            });
+
+            document.getElementById('back-to-review-button').addEventListener('click', () => {
+                document.getElementById('output').style.display = 'none';
+                document.getElementById('output-controls').style.display = 'none';
+                document.getElementById('sticker-sheet-container').style.display = 'none';
+                document.getElementById('tracking-sheet-container').style.display = 'none';
+                document.getElementById('casting-layout-container').style.display = 'none';
+                const trackingPrintButton = document.getElementById('print-tracking-sheet-button');
+                if (trackingPrintButton) trackingPrintButton.remove();
+                const stickerPrintButton = document.getElementById('print-stickers-button');
+                if (stickerPrintButton) stickerPrintButton.remove();
+                displayReviewData();
+            });
+            document.getElementById('cancel-review').addEventListener('click', () => {
+                document.getElementById('review-actions').style.display = 'none';
+                document.getElementById('review-container').style.display = 'none';
+                document.getElementById('output').style.display = 'none';
+                document.getElementById('input-container').style.display = 'block';
+                document.getElementById('file-input').value = '';
+                const configContainer = document.getElementById('pre-existing-forms-container-config');
+                configContainer.innerHTML = `
+                    <div class="form-row">
+                        <span>Form 1</span>
+                        <input type="number" placeholder="Width" class="pre-existing-width">
+                        <input type="number" placeholder="Length" class="pre-existing-length">
+                        <input type="number" placeholder="Quantity" class="pre-existing-qty" value="1">
+                    </div>
+                `;
+                formRowCount = 1;
+            });
+            document.getElementById('start-over').addEventListener('click', resetToInitialView);
+            document.getElementById('back-to-schedule-button').addEventListener('click', () => {
+               document.getElementById('sticker-sheet-container').style.display = 'none';
+               document.getElementById('sticker-settings-container').style.display = 'none';
+               document.getElementById('tracking-sheet-container').style.display = 'none';
+               document.getElementById('casting-layout-container').style.display = 'none';
+               document.getElementById('output').style.display = 'block';
+               document.getElementById('output-controls').style.display = 'block';
+               
+               // Left
+               document.getElementById('start-over').style.display = 'inline-block';
+               document.getElementById('back-to-review-button').style.display = 'inline-block';
+               document.getElementById('back-to-build-details-button').style.display = 'inline-block';
+               document.getElementById('back-to-schedule-button').style.display = 'none';
+     
+               // Middle
+               document.getElementById('print-schedule-button').style.display = 'inline-block';
+               document.getElementById('print-note').style.display = 'inline';
+     
+               // Right
+               document.getElementById('generate-stickers-button').style.display = 'inline-block';
+               document.getElementById('generate-tracking-sheet-button').style.display = 'inline-block';
+               document.getElementById('view-layout-button').style.display = 'inline-block';
+      
+               const stickerPrintButton = document.getElementById('print-stickers-button');
+               if (stickerPrintButton) stickerPrintButton.remove();
+               const trackingPrintButton = document.getElementById('print-tracking-sheet-button');
+               if (trackingPrintButton) trackingPrintButton.remove();
+     
+               const stickerStyle = document.getElementById('dynamic-sticker-style');
+               if(stickerStyle) stickerStyle.remove();
+           });
+
+            // Input Handlers
+            document.getElementById('file-input').addEventListener('change', updateGenerateButtonState);
+            document.getElementById('add-form-row-config').addEventListener('click', addPreExistingFormRow);
+
+            document.getElementById('view-layout-button').addEventListener('click', () => {
+                document.getElementById('output').style.display = 'none';
+                document.getElementById('sticker-sheet-container').style.display = 'none';
+                document.getElementById('sticker-settings-container').style.display = 'none';
+                document.getElementById('tracking-sheet-container').style.display = 'none';
+                
+                const layoutContainer = document.getElementById('casting-layout-container');
+                layoutContainer.style.display = 'block';
+                
+                const layoutsWrapper = document.getElementById('layouts-wrapper');
+                layoutsWrapper.innerHTML = ''; // Clear previous layouts
+
+                // Trigger change event to set initial state from dropdown
+                handleCastingAreaChange({ target: document.getElementById('casting-area-selector') });
+
+                appState.castingSchedule.forEach((cast, castIndex) => {
+                    initializeLayoutForCast(castIndex);
+
+                    // Create a container for each cast's title and canvas
+                    const castView = document.createElement('div');
+                    castView.className = 'cast-view';
+                    castView.style.marginBottom = '40px';
+
+                    const title = document.createElement('h3');
+                    title.textContent = `Cast ${castIndex + 1}`;
+                    title.style.borderBottom = '2px solid var(--accent-color)';
+                    title.style.paddingBottom = '10px';
+                    
+                    const newCanvasWrapper = document.createElement('div');
+                    newCanvasWrapper.className = 'canvas-wrapper';
+
+                    const newCanvas = document.createElement('canvas');
+                    newCanvas.className = 'casting-canvas';
+                    newCanvas.dataset.castIndex = castIndex; // Store index for event handling
+                    
+                    newCanvasWrapper.appendChild(newCanvas);
+                    castView.appendChild(title);
+                    castView.appendChild(newCanvasWrapper);
+                    layoutsWrapper.appendChild(castView);
+
+                    drawCastingLayout(castIndex, newCanvas);
+
+                    // Add event listeners to the new canvas
+                    newCanvas.addEventListener('mousedown', handleCanvasMouseDown);
+                    newCanvas.addEventListener('mousemove', handleCanvasMouseMove);
+                    newCanvas.addEventListener('mouseup', handleCanvasMouseUp);
+                    newCanvas.addEventListener('mouseleave', handleCanvasMouseUp);
+                });
+
+                // Update nav
+                document.getElementById('back-to-schedule-button').style.display = 'inline-block';
+                document.getElementById('generate-stickers-button').style.display = 'inline-block';
+                document.getElementById('generate-tracking-sheet-button').style.display = 'inline-block';
+                document.getElementById('view-layout-button').style.display = 'none';
+            });
+
+            document.getElementById('casting-area-selector').addEventListener('change', handleCastingAreaChange);
+
+            // New listeners for interactive layout
+            // Event listeners are now added dynamically to each canvas.
+            // The old static listeners are no longer needed.
+            window.addEventListener('keydown', handleKeyDown);
+            window.addEventListener('keyup', handleKeyUp);
+
+            document.getElementById('save-layout-btn').addEventListener('click', saveLayout);
+            document.getElementById('load-layout-btn').addEventListener('click', loadLayout);
+            document.getElementById('reset-layout-btn').addEventListener('click', resetLayout);
+            document.getElementById('print-layout-btn').addEventListener('click', generatePrintableLayout);
+
+            // Output Generation
+            document.getElementById('print-schedule-button').addEventListener('click', () => window.print());
+            document.getElementById('generate-stickers-button').addEventListener('click', () => {
+                if (!appState.panelLegend || !appState.castingSchedule) {
+                    alert('Please generate a schedule first.');
+                    return;
+                }
+                document.getElementById('output').style.display = 'none';
+                document.getElementById('tracking-sheet-container').style.display = 'none';
+                document.getElementById('sticker-sheet-container').style.display = 'none';
+                document.getElementById('casting-layout-container').style.display = 'none';
+                document.getElementById('output-controls').style.display = 'none';
+                document.getElementById('sticker-settings-container').style.display = 'block';
+            });
+            document.getElementById('confirm-generate-stickers').addEventListener('click', generateStickers);
+            document.getElementById('cancel-sticker-generation').addEventListener('click', () => {
+                document.getElementById('sticker-settings-container').style.display = 'none';
+                document.getElementById('output').style.display = 'block';
+                document.getElementById('output-controls').style.display = 'block';
+            });
+            document.getElementById('generate-tracking-sheet-button').addEventListener('click', generateTrackingSheet);
+
+            // Initial State
+            updateGenerateButtonState();
+        });
+    </script>
+    </div>
+</body>
+</html>
