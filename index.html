@@ -29,21 +29,31 @@
         }
 
         /* Base & Typography */
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden; /* Prevent scrollbars on the body itself */
+        }
+
         body {
             font-family: var(--font-family-sans);
             line-height: 1.6;
             background-color: var(--bg-main);
             color: var(--text-primary);
-            padding: 0;
-            margin: 0;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
         }
 
         .main-container {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 2rem;
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0; /* Remove padding to fill the entire window */
+            box-sizing: border-box;
+            overflow-y: auto; /* Allow scrolling within the container */
+            display: flex;
+            flex-direction: column;
         }
 
         h1, h2, h3, h4 {
@@ -224,7 +234,7 @@
             border: 1px solid var(--border-color);
             border-radius: 0.75rem;
             z-index: 99;
-            justify-content: space-between;
+            justify-content: flex-end;
             align-items: center;
             margin-bottom: 2rem;
         }
@@ -294,7 +304,16 @@
         }
 
         /* Sticker Styles */
-        .sticker-sheet-container { display: none; padding: 20px; }
+        .sticker-sheet-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        .sticker-sheet-header h2 {
+            margin-bottom: 0;
+        }
+        .sticker-sheet-container { display: none; } /* Padding is now on the card */
         .sticker-sheet {
             display: flex;
             flex-wrap: wrap;
@@ -325,15 +344,66 @@
         .qc-boxes { display: flex; justify-content: space-around; margin-top: 3px; }
         .qc-box { border: 1px solid #000; width: 12px; height: 12px; font-size: 6pt; text-align: center; line-height: 10px; }
 
+        /* Collapsible Menu Styles */
+        details {
+            border: 1px solid var(--border-color);
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            transition: all 0.3s ease;
+            background-color: var(--bg-card); /* Give details a card background */
+        }
+        details[open] {
+            border-color: var(--border-color-strong);
+        }
+        summary {
+            font-weight: 600;
+            font-size: 0.95rem;
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            list-style: none; /* Remove default marker */
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s;
+        }
+        details:not([open]) summary:hover {
+            background-color: var(--bg-main);
+        }
+        summary::-webkit-details-marker {
+            display: none; /* Hide marker on Chrome */
+        }
+        summary::after {
+            content: '▶'; /* Collapsed state icon */
+            font-size: 0.8em;
+            transition: transform 0.2s ease-in-out;
+            color: var(--text-secondary);
+        }
+        details[open] > summary {
+            border-bottom: 1px solid var(--border-color);
+            border-bottom-left-radius: 0;
+            border-bottom-right-radius: 0;
+        }
+        details[open] > summary::after {
+            transform: rotate(90deg); /* Expanded state icon */
+        }
+        details > div { /* The settings content */
+            padding: 1.5rem;
+            background-color: var(--bg-main);
+            border-bottom-left-radius: 0.5rem;
+            border-bottom-right-radius: 0.5rem;
+        }
+
         /* Print Styles */
         @media print {
+            @page { size: letter landscape; margin: 0.5in; } /* Default page orientation */
             body {
                 padding: 0; margin: 0; font-size: 10pt;
                 background-color: #fff !important; color: #000 !important;
             }
             * { color: #000 !important; background-color: #fff !important; box-shadow: none !important; }
             .main-container { padding: 0.5in; max-width: 100%; }
-            #header-container, #review-actions, #output-controls, #input-container, .explanation-section, #print-note, #casting-layout-container, .card {
+            #header-container, #review-actions, #output-controls, .explanation-section, #print-note, #casting-layout-container, .card {
                 display: none !important;
             }
             #printable-layout-container, #output[style*="display: block"], #sticker-sheet-container[style*="display: block"], #tracking-sheet-container[style*="display: block"] {
@@ -353,59 +423,38 @@
             .sticker-sheet-container { page: sticker-page; }
             @page tracking-sheet-page { size: letter landscape; margin: 0.25in; }
             #tracking-sheet-container { page: tracking-sheet-page; }
-            @page { size: landscape; margin: 0.5in; }
+        }
+
+        body.printing .printing-target {
+            display: block !important;
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            border: none;
+            margin: 0;
+            padding: 0;
+        }
+
+        body.printing .main-container > *:not(.printing-target) {
+            display: none !important;
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded"></script>
-    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded"></script>
 </head>
 <body>
-    <div class="main-container">
-        <div id="input-container" class="card">
-        <div id="header-container">
-            <img src="https://www.concreteworkseast.com/wp-content/uploads/2024/07/PNG-White-Color-Transparent-Background-1.png" alt="CWE Logo" id="header-logo">
-            <h1>CWE Production Dashboard</h1>
-            <p>This application helps optimize panel production by generating efficient casting schedules, tracking sheets, and production stickers.</p>
-            <div class="action-buttons">
-                <button id="generate-schedule" class="btn-primary" disabled>Generate Schedule</button>
-            </div>
-            <div class="input-option">
-                <h3>Upload Project Data</h3>
-                <p>Upload your project's <strong>Excel (.xlsx)</strong> file. This file should contain your Project Information and Panel Legend.</p>
-                <p><small><b>For Excel:</b> Ensure your data is on sheets named "Project Information" and "Panel Legend". A casting schedule is optional and will be generated if not provided.</small></p>
-                <input type="file" id="file-input" accept=".xlsx,.xls">
-                <p><small><b>To export from Google Sheets:</b> Open your sheet, go to <i>File > Download > Microsoft Excel (.xlsx)</i>.</small></p>
-                <div class="template-link-container">
-                    <a href="https://docs.google.com/spreadsheets/d/1etTFuqcqPBHPw2U1r-XG92rKT9JYsUP_-QtnDHiNczk/edit?usp=sharing" class="template-link" target="_blank">Get Project Panel List Template</a>
-                </div>
-            </div>
-            <div class="input-option">
-                <h3>Connect to Google Drive</h3>
-                <p><strong>Step 1:</strong> Sign in with your Google account to securely access your Drive files.</p>
-                <button id="authorize-button" class="btn-primary" style="display: none; margin-right: 0.5rem;">Sign in with Google</button>
-                <button id="signout-button" class="btn-secondary" style="display: none;">Sign Out</button>
-
-                <div id="drive-controls" style="margin-top: 1.5rem;">
-                    <p><strong>Step 2:</strong> Provide a link to a Google Drive folder to find and load your sheet.</p>
-                    <input type="text" id="google-drive-folder-url-input" placeholder="Sign in to enable" disabled>
-                    <button id="get-sheets-button" class="btn-secondary" style="margin-top: 1rem;" disabled>Find Sheets in Folder</button>
-                    <div id="sheet-list-container" style="display: none; margin-top: 1.5rem;">
-                        <h4>Select a Google Sheet</h4>
-                        <div id="sheet-list" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 0.5rem; padding: 1rem; background-color: var(--bg-main);"></div>
-                        <button id="load-selected-sheet" class="btn-success" style="margin-top: 1rem;" disabled>Load Selected Sheet</button>
-                    </div>
-                </div>
-            </div>
-        </div>
+    <div id="loading-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(31, 41, 55, 0.8); backdrop-filter: blur(5px); display: none; flex-direction: column; justify-content: center; align-items: center; z-index: 10000; color: var(--text-primary);">
+        <svg aria-hidden="true" class="w-8 h-8 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600" style="width: 5rem; height: 5rem;" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M100 50.5908C100 78.2051 77.6142 100.591 50 100.591C22.3858 100.591 0 78.2051 0 50.5908C0 22.9766 22.3858 0.59082 50 0.59082C77.6142 0.59082 100 22.9766 100 50.5908ZM9.08144 50.5908C9.08144 73.1895 27.4013 91.5094 50 91.5094C72.5987 91.5094 90.9186 73.1895 90.9186 50.5908C90.9186 27.9921 72.5987 9.67226 50 9.67226C27.4013 9.67226 9.08144 27.9921 9.08144 50.5908Z" fill="currentColor"/>
+            <path d="M93.9676 39.0409C96.393 38.4038 97.8624 35.9116 97.0079 33.5539C95.2932 28.8227 92.871 24.3692 89.8167 20.348C85.8452 15.1192 80.8826 10.7238 75.2124 7.41289C69.5422 4.10194 63.2754 1.94025 56.7698 1.05124C51.7666 0.367541 46.6976 0.446843 41.7345 1.27873C39.2613 1.69328 37.813 4.19778 38.4501 6.62326C39.0873 9.04874 41.5694 10.4717 44.0505 10.1071C47.8511 9.54855 51.7191 9.52689 55.5402 10.0492C60.8642 10.7766 65.9928 12.5457 70.6331 15.2552C75.2735 17.9648 79.3347 21.5619 82.5849 25.841C84.9175 28.9121 86.7997 32.2913 88.1811 35.8758C89.083 38.2158 91.5421 39.6781 93.9676 39.0409Z" fill="var(--accent-primary)"/>
+        </svg>
+        <h2 style="margin-top: 1rem; font-size: 1.5rem; letter-spacing: 0.05em;">Loading Project Data...</h2>
     </div>
+    <div class="main-container">
     <div id="output-controls" class="card">
         <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 1rem;">
             <div id="nav-left-controls" style="display: flex; gap: 0.5rem; align-items: center;">
-                <button id="start-over" class="btn-secondary">Start Over</button>
                 <button id="back-to-schedule-button" class="btn-secondary" style="display: none;">Back to Schedule</button>
                 <button id="back-to-review-button" class="btn-secondary">Back to Review</button>
-                <button id="back-to-build-details-button" class="btn-secondary" style="display: none;">Back to Build Details</button>
             </div>
             <div id="nav-middle-controls" style="display: flex; gap: 0.5rem; align-items: center;">
                 <button id="print-schedule-button" class="btn-primary" disabled>Print Schedule</button>
@@ -415,11 +464,11 @@
                <button id="generate-tracking-sheet-button" class="btn-secondary" disabled>Generate Tracking Sheet</button>
                <button id="generate-stickers-button" class="btn-secondary" disabled>Generate Stickers</button>
                <button id="view-layout-button" class="btn-secondary" disabled>View Casting Layout</button>
+               <button id="fullscreen-btn" class="btn-secondary" title="Toggle Fullscreen"></button>
             </div>
         </div>
     </div>
     <div id="review-actions">
-        <button id="cancel-review" class="btn-secondary">Back</button>
         <button id="confirm-generate" class="btn-success">Confirm and Generate Schedule</button>
     </div>
     <div id="review-container" class="card">
@@ -438,108 +487,63 @@
             <div id="review-casting-schedule"></div>
         </div>
     </div>
-    <div id="casting-config-container" class="card">
-       <h2 style="border-bottom: 2px solid var(--accent-primary); padding-bottom: 10px; margin-bottom: 20px;">Form Out Build Details</h2>
-       <p>Define constraints for new forms and input any pre-existing forms you have available. This information will be used to optimize the casting schedule.</p>
-       
-       <div class="input-option">
-           <h3>Optimization Settings</h3>
-           <div class="paste-area">
-               <label for="use-filler-panel">
-                   <input type="checkbox" id="use-filler-panel" checked>
-                   <strong>Use Filler Panel</strong> (Enable/disable filler panels logic in casting optimization)
-               </label>
-           </div>
-           <div class="paste-area">
-               <label for="reusable-forms">
-                   <input type="checkbox" id="reusable-forms" checked>
-                   <strong>Reusable Forms</strong> (Enable/disable form storage logic in casting optimization)
-               </label>
-           </div>
-       </div>
-       
-       <div class="input-option">
-           <h3>Constraints (Optional)</h3>
-           <p>Set a maximum length and/or width for newly created forms. This can be useful to match available material sizes.</p>
-           <div class="paste-area">
-               <label for="max-length-input"><strong>Max Form Length (inches)</strong></label>
-               <input type="number" id="max-length-input" placeholder="e.g., 240">
-           </div>
-           <div class="paste-area">
-               <label for="max-width-input"><strong>Max Form Width (inches)</strong></label>
-               <input type="number" id="max-width-input" placeholder="e.g., 96">
-           </div>
-       </div>
-
-       <div class="input-option">
-           <h3>Pre-existing Forms (Optional)</h3>
-           <p>Enter the dimensions and quantity of pre-existing forms available.</p>
-           <div id="pre-existing-forms-container-config">
-               <div class="form-row">
-                   <span>Form 1</span>
-                   <input type="number" placeholder="Width" class="pre-existing-width">
-                   <input type="number" placeholder="Length" class="pre-existing-length">
-                   <input type="number" placeholder="Quantity" class="pre-existing-qty" value="1">
-               </div>
-           </div>
-           <button id="add-form-row-config" class="btn-secondary">+</button>
-       </div>
-
-       <div class="config-actions" style="margin-top: 20px; display: flex; justify-content: space-between; align-items: center;">
-            <button id="back-to-review-from-config" class="btn-secondary">Back to Review</button>
-            <button id="confirm-config-generate" class="btn-success">Confirm and Generate Schedule</button>
-       </div>
-    </div>
     <div id="output" class="card" style="display: none;">
         <h2>Casting Schedule</h2>
-        <p>This schedule outlines the optimal use of forms for each casting day, minimizing waste and new form creation.</p>
-        <p>Please upload an Excel file and click "Generate Schedule".</p>
+        <p>This schedule displays the casting plan directly from the "Casting Schedule" tab in the Google Sheet.</p>
     </div>
-<div id="sticker-settings-container" class="card">
-        <h2>Tracking Tickets</h2>
-        <p>Configure the layout settings for your sticker sheets to ensure accurate printing. These stickers provide essential panel information for tracking.</p>
-        <h3 style="margin-top: 15px;">Sticker Sheet Layout Settings</h3>
-        <p>Adjust the layout to match your sticker paper. The default values are for a standard 30-label sheet (e.g., Avery 5160 / Sheet-Labels SL100).</p>
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
-            <div class="paste-area">
-                <label for="sticker-width">Sticker Width (inches)</label>
-                <input type="number" id="sticker-width" value="2.625" step="0.001">
-            </div>
-            <div class="paste-area">
-                <label for="sticker-height">Sticker Height (inches)</label>
-                <input type="number" id="sticker-height" value="1" step="0.001">
-            </div>
-            <div class="paste-area">
-                <label for="sticker-cols">Columns per Sheet</label>
-                <input type="number" id="sticker-cols" value="3" step="1">
-            </div>
-            <div class="paste-area">
-                <label for="sticker-rows">Rows per Sheet</label>
-                <input type="number" id="sticker-rows" value="10" step="1">
-            </div>
-            <div class="paste-area">
-                <label for="sheet-margin-top">Top/Bottom Margin (inches)</label>
-                <input type="number" id="sheet-margin-top" value="0.5" step="0.001">
-            </div>
-            <div class="paste-area">
-                <label for="sheet-margin-left">Left/Right Margin (inches)</label>
-                <input type="number" id="sheet-margin-left" value="0.1875" step="0.001">
-            </div>
-            <div class="paste-area">
-                <label for="gap-vertical">Vertical Gap (inches)</label>
-                <input type="number" id="gap-vertical" value="0" step="0.001">
-            </div>
-            <div class="paste-area">
-                <label for="gap-horizontal">Horizontal Gap (inches)</label>
-                <input type="number" id="gap-horizontal" value="0.15625" step="0.001">
-            </div>
+    <div id="sticker-sheet-container" class="card">
+        <div class="sticker-sheet-header">
+            <h2 style="margin-bottom: 0;">Tracking Tickets</h2>
         </div>
-        <div style="margin-top: 20px;">
-            <button id="confirm-generate-stickers" class="btn-success">Generate & View Stickers</button>
-            <button id="cancel-sticker-generation" class="btn-secondary">Cancel</button>
-        </div>
+        <p>These stickers provide essential panel information for tracking during production.</p>
+
+        <details id="sticker-settings-details">
+            <summary>Configure Layout</summary>
+            <div id="sticker-layout-settings">
+                <h3 style="margin-top: 0;">Sticker Sheet Layout Settings</h3>
+                <p>Adjust the layout to match your sticker paper. The default values are for a standard 30-label sheet (e.g., Avery 5160 / Sheet-Labels SL100).</p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">
+                    <div class="paste-area">
+                        <label for="sticker-width">Sticker Width (inches)</label>
+                        <input type="number" id="sticker-width" value="2.625" step="0.001">
+                    </div>
+                    <div class="paste-area">
+                        <label for="sticker-height">Sticker Height (inches)</label>
+                        <input type="number" id="sticker-height" value="1" step="0.001">
+                    </div>
+                    <div class="paste-area">
+                        <label for="sticker-cols">Columns per Sheet</label>
+                        <input type="number" id="sticker-cols" value="3" step="1">
+                    </div>
+                    <div class="paste-area">
+                        <label for="sticker-rows">Rows per Sheet</label>
+                        <input type="number" id="sticker-rows" value="10" step="1">
+                    </div>
+                    <div class="paste-area">
+                        <label for="sheet-margin-top">Top/Bottom Margin (inches)</label>
+                        <input type="number" id="sheet-margin-top" value="0.5" step="0.001">
+                    </div>
+                    <div class="paste-area">
+                        <label for="sheet-margin-left">Left/Right Margin (inches)</label>
+                        <input type="number" id="sheet-margin-left" value="0.1875" step="0.001">
+                    </div>
+                    <div class="paste-area">
+                        <label for="gap-vertical">Vertical Gap (inches)</label>
+                        <input type="number" id="gap-vertical" value="0" step="0.001">
+                    </div>
+                    <div class="paste-area">
+                        <label for="gap-horizontal">Horizontal Gap (inches)</label>
+                        <input type="number" id="gap-horizontal" value="0.15625" step="0.001">
+                    </div>
+                </div>
+                <div style="margin-top: 20px; display: flex; gap: 0.5rem;">
+                    <button id="confirm-generate-stickers" class="btn-success">Generate & View Stickers</button>
+                    <button id="cancel-sticker-settings" class="btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </details>
+        <div id="sticker-sheets-output" style="margin-top: 1.5rem;"></div>
     </div>
-    <div id="sticker-sheet-container" class="card"></div>
     <div id="tracking-sheet-container" class="card" style="display: none;"></div>
     <div id="casting-layout-container" class="card" style="display: none;">
         <h2>Casting Layout Visualization</h2>
@@ -553,6 +557,14 @@
                         <option value="presetA" selected>Preset A</option>
                         <option value="presetB">Preset B</option>
                     </select>
+                </div>
+                 <div>
+                    <label for="form-offset-input">Form Base Offset (in):</label>
+                    <input type="number" id="form-offset-input" value="0" step="0.125">
+                </div>
+                 <div>
+                    <label for="panel-spacing-input">Panel Spacing (in):</label>
+                    <input type="number" id="panel-spacing-input" value="5" step="1">
                 </div>
                 <div class="panel-dims" style="display: none;">
                     <label>Panel Dimensions (in):</label>
@@ -582,297 +594,151 @@
     <!-- SCRIPT LOGIC -->
     <!-- All application logic is contained within this single script tag. -->
     <!-- ================================================================================= -->
-    <!-- ================================================================================= -->
-    <!-- IMPORTANT: HOW TO RUN THIS FILE LOCALLY -->
-    <!-- ================================================================================= -->
-    <!--
-        **Problem:** You may see a "failed to fetch" or "CORS" error when trying to load
-        data from a Google Sheet URL. This is a security feature in all modern web browsers.
-        When you open this HTML file directly from your computer (e.g., file:///...),
-        the browser blocks it from fetching data from the internet.
-
-        **Solution:** You must serve this file from a simple local web server. This is
-        easy to do and is the standard way to develop web applications.
-
-        --- INSTRUCTIONS ---
-        1. Open a terminal or command prompt in the same folder as this HTML file.
-           (In VS Code, you can go to Terminal > New Terminal).
-
-        2. Check if you have Python installed by typing:
-           python --version
-        
-        3. If Python is installed, run ONE of the following commands:
-           - For Python 3.x:  python -m http.server 8000
-           - For Python 2.x:  python -m SimpleHTTPServer 8000
-
-        4. After running the command, open your web browser and go to this address:
-           http://localhost:8000
-
-        Your application should now load correctly and be able to fetch data from
-        Google Sheets without any "failed to fetch" errors.
-    -->
     <script>
         // =================================================================================
-        // MODULE: GOOGLE DRIVE & SHEETS API INTEGRATION (OAUTH 2.0 METHOD)
+        // MODULE: GOOGLE APPS SCRIPT INTEGRATION
         // =================================================================================
-        // IMPORTANT: SETUP INSTRUCTIONS FOR OAUTH 2.0
-        // This method is for secure access to a user's private files.
-        // 1. Go to https://console.cloud.google.com/ and create a new project.
-        // 2. In the sidebar, go to "APIs & Services" > "Library".
-        // 3. Search for "Google Drive API" and enable it.
-        // 4. In the sidebar, go to "APIs & Services" > "OAuth consent screen". Configure it for "External" users, add your app name, user support email, and developer contact.
-        // 5. In the sidebar, go to "APIs & Services" > "Credentials".
-        // 6. Click "+ CREATE CREDENTIALS" and select "OAuth 2.0 Client ID".
-        // 7. Choose "Web application" as the application type.
-        // 8. Under "Authorized JavaScript origins", add the URL where you are hosting this file (e.g., http://localhost:8000).
-        // 9. Copy the generated "Client ID" and paste it below.
-        // =================================================================================
-        const CLIENT_ID = 'YOUR_CLIENT_ID_HERE'; // <-- PASTE YOUR OAUTH 2.0 CLIENT ID HERE
-        const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
-        // Scopes control the level of access. `drive.readonly` is for viewing files.
-        // For future write capabilities, you would add `https://www.googleapis.com/auth/drive.file`.
-        const SCOPES = 'https://www.googleapis.com/auth/drive.readonly';
-
-        let tokenClient;
-        let gapiInited = false;
-        let gisInited = false;
-
-        const authorizeButton = document.getElementById('authorize-button');
-        const signoutButton = document.getElementById('signout-button');
-        const driveControls = document.getElementById('drive-controls'); // This div is now always visible
-        const folderUrlInput = document.getElementById('google-drive-folder-url-input');
-        const getSheetsButton = document.getElementById('get-sheets-button');
-
-        function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
-        }
-
-        function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
-        }
-
-        async function initializeGapiClient() {
-            await gapi.client.init({ discoveryDocs: DISCOVERY_DOCS });
-            gapiInited = true;
-            trySilentSignIn();
-        }
-
-        function gisLoaded() {
-            if (!CLIENT_ID || CLIENT_ID === 'YOUR_CLIENT_ID_HERE') {
-                const message = 'OAuth Client ID is not configured. Please follow the setup instructions in the index.html file.';
-                alert(message);
-                authorizeButton.textContent = 'Client ID Missing';
-                authorizeButton.style.display = 'block';
-                console.error(message);
-                return;
-            }
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: (tokenResponse) => {
-                    // This single callback handles all token responses, from both
-                    // silent and interactive sign-in attempts.
-                    if (tokenResponse && tokenResponse.access_token) {
-                        gapi.client.setToken(tokenResponse);
-                        updateSigninStatus(true);
-                    } else {
-                        // This case is hit when silent sign-in fails, meaning the user
-                        // has not granted consent or is signed out. We now show the button.
-                        updateSigninStatus(false);
-                    }
-                },
-            });
-            gisInited = true;
-            trySilentSignIn();
-        }
-
-        function trySilentSignIn() {
-            // This function is called by both library loaders. The conditional check
-            // ensures it only runs once, after both are ready.
-            if (gapiInited && gisInited) {
-                // Attempt to get a token silently.
-                tokenClient.requestAccessToken({prompt: 'none'});
-            }
-        }
-
-        function updateSigninStatus(isSignedIn) {
-            if (isSignedIn) {
-                folderUrlInput.disabled = false;
-                getSheetsButton.disabled = false;
-                folderUrlInput.placeholder = 'e.g., https://drive.google.com/drive/folders/YOUR_FOLDER_ID';
-                signoutButton.style.display = 'block';
-                authorizeButton.style.display = 'none';
-            } else {
-                folderUrlInput.disabled = true;
-                getSheetsButton.disabled = true;
-                folderUrlInput.value = '';
-                folderUrlInput.placeholder = 'Sign in to enable';
-                document.getElementById('sheet-list-container').style.display = 'none';
-                signoutButton.style.display = 'none';
-                authorizeButton.style.display = 'block'; // Show the sign-in button
-            }
-        }
-
-        function handleAuthClick() {
-            // When the user clicks the sign-in button, request a token with consent.
-            if (gisInited) {
-                tokenClient.requestAccessToken({prompt: 'consent'});
-            }
-        }
-
-        function handleSignoutClick() {
-            const token = gapi.client.getToken();
-            if (token !== null) {
-                // Revoke the token and update the UI.
-                google.accounts.oauth2.revoke(token.access_token, () => {
-                    gapi.client.setToken('');
-                    updateSigninStatus(false);
-                });
-            }
-        }
-
-        function getFolderIdFromUrl(url) {
-            const match = url.match(/folders\/([a-zA-Z0-9_-]+)/);
-            return match ? match[1] : null;
-        }
-
-        async function listSheetsInFolder() {
-            const folderUrl = document.getElementById('google-drive-folder-url-input').value;
-            if (!folderUrl) {
-                alert('Please enter a Google Drive folder URL.');
-                return;
-            }
-
-            const folderId = getFolderIdFromUrl(folderUrl);
-            if (!folderId) {
-                alert('Invalid Google Drive folder URL. Please ensure it contains "/folders/".');
-                return;
-            }
-
-            if (gapi.client.getToken() === null) {
-                alert('Please sign in first to access Google Drive.');
-                return;
-            }
-
-            let response;
-            try {
-                response = await gapi.client.drive.files.list({
-                    q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`,
-                    fields: 'files(id, name)',
-                });
-            } catch (err) {
-                console.error("API call error:", err);
-                alert('An error occurred while fetching files. Ensure the folder is shared with you and the URL is correct.');
-                return;
-            }
-
-            const files = response.result.files;
-            const sheetListDiv = document.getElementById('sheet-list');
-            const sheetListContainer = document.getElementById('sheet-list-container');
-            const loadSelectedButton = document.getElementById('load-selected-sheet');
-            sheetListDiv.innerHTML = ''; // Clear previous list
-
-            if (!files || files.length == 0) {
-                sheetListDiv.innerHTML = '<p>No Google Sheets found in this folder.</p>';
-                sheetListContainer.style.display = 'block';
-                loadSelectedButton.disabled = true;
-                return;
-            }
-
-            files.forEach(file => {
-                const radioLabel = document.createElement('label');
-                radioLabel.style.display = 'block';
-                radioLabel.style.padding = '0.5rem';
-                radioLabel.style.cursor = 'pointer';
-                radioLabel.innerHTML = `
-                    <input type="radio" name="sheet-selection" value="${file.id}">
-                    ${file.name}
-                `;
-                sheetListDiv.appendChild(radioLabel);
-            });
-            
-            sheetListDiv.addEventListener('change', () => {
-                loadSelectedButton.disabled = false;
-            });
-
-            sheetListContainer.style.display = 'block';
-        }
-
-        async function loadSelectedSheet() {
-            const selected = document.querySelector('input[name="sheet-selection"]:checked');
-            if (!selected) {
-                alert('Please select a sheet to load.');
-                return;
-            }
-            const spreadsheetId = selected.value;
-            await loadDataFromGoogleSheetById(spreadsheetId);
-        }
 
         /**
-         * Fetches data from a public Google Sheet using the gviz CSV export URL.
-         * This method does not require OAuth authentication.
+         * Fetches data from the active Google Sheet using google.script.run.
+         * It calls the 'getSheetData' function in the backend Apps Script (Code.gs).
          */
-        async function loadDataFromGoogleSheetById(spreadsheetId) {
-            if (!spreadsheetId) {
-                alert('No spreadsheet ID provided.');
-                return;
-            }
+        function loadDataFromActiveSheet() {
+            const overlay = document.getElementById('loading-overlay');
+            if(overlay) overlay.style.display = 'flex';
 
-            const sheetNames = ["Project Information", "Panel Legend", "Casting Schedule"];
-            const sheetData = {};
-            
-            const loadButton = document.getElementById('load-selected-sheet');
-            const originalButtonText = loadButton.textContent;
-            loadButton.textContent = 'Loading...';
-            loadButton.disabled = true;
-
-            try {
-                for (const sheetName of sheetNames) {
-                    const encodedSheetName = encodeURIComponent(sheetName);
-                    // Use a CORS proxy to bypass browser security restrictions.
-                    const targetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/gviz/tq?tqx=out:csv&sheet=${encodedSheetName}`;
-                    const csvUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
-                    
-                    console.log(`Fetching from URL: ${csvUrl}`);
-
-                    const response = await fetch(csvUrl);
-                    const responseText = await response.text();
-
-                    if (!response.ok || responseText.includes('"status":"error"')) {
-                         throw new Error(`Failed to fetch sheet: "${sheetName}". Please ensure the folder and sheet are public.`);
+            // Call the Apps Script function. The 'withSuccessHandler' and 'withFailureHandler'
+            // are callbacks that will execute when the server-side function returns.
+            google.script.run
+                .withSuccessHandler(data => {
+                    if(overlay) overlay.style.display = 'none';
+                    console.log("Data received from Apps Script:", data);
+                    if (data.error) {
+                        alert('Error from Apps Script: ' + data.error);
+                        return;
                     }
-                    
-                    if (responseText.trim().startsWith('<')) {
-                        throw new Error(`Received an unexpected HTML response for "${sheetName}". This usually indicates a permission issue.`);
-                    }
-
-                    const parsedCsv = parseCsv(responseText);
-                    sheetData[sheetName] = parsedCsv;
-                    appState.rawSheetData[sheetName] = responseText;
-                    console.log(`Successfully parsed "${sheetName}":`, parsedCsv);
-                }
-
-                const parsedData = transformCsvDataToAppState(sheetData);
-                processData(parsedData);
-
-            } catch (error) {
-                console.error('Error during Google Sheet data load:', error);
-                alert(`A critical error occurred: ${error.message}`);
-            } finally {
-                loadButton.textContent = originalButtonText;
-                // The button will be re-enabled if the user selects another sheet.
-            }
+                    // The data is already structured, so we can process it directly.
+                    processData(data);
+                })
+                .withFailureHandler(error => {
+                    if(overlay) overlay.style.display = 'none';
+                    console.error('Google Apps Script execution error:', error);
+                    alert('A critical error occurred while communicating with Google Sheets: ' + error.message);
+                })
+                .getSheetData();
         }
 
+
         // =================================================================================
-        // MODULE: APP STATE & INITIALIZATION
+        // MODULE: NAVIGATION
         // =================================================================================
+        const Navigation = (() => {
+            const views = [
+                '#review-container', '#output',
+                '#sticker-sheet-container', '#tracking-sheet-container', '#casting-layout-container'
+            ];
+            const controls = {
+                main: '#output-controls',
+                review: '#review-actions',
+                backToSchedule: '#back-to-schedule-button',
+                backToReview: '#back-to-review-button',
+                printSchedule: '#print-schedule-button',
+                printNote: '#print-note',
+                generateStickers: '#generate-stickers-button',
+                generateTracking: '#generate-tracking-sheet-button',
+                viewLayout: '#view-layout-button',
+                printStickers: '#print-stickers-button', // Will be created dynamically
+                printTracking: '#print-tracking-sheet-button' // Will be created dynamically
+            };
+
+            function showView(viewId) {
+                console.log(`Switching to view: ${viewId}`);
+                views.forEach(v => {
+                    const el = document.querySelector(v);
+                    if (el) el.style.display = (v === viewId) ? 'block' : 'none';
+                });
+                updateControls(viewId);
+            }
+
+            function updateControls(viewId) {
+                const mainControls = document.querySelector(controls.main);
+                const reviewActions = document.querySelector(controls.review);
+                
+                // Default states
+                mainControls.style.display = 'none';
+                reviewActions.style.display = 'none';
+                document.querySelector(controls.backToSchedule).style.display = 'none';
+                document.querySelector(controls.backToReview).style.display = 'inline-block';
+                document.querySelector(controls.printSchedule).style.display = 'none';
+                document.querySelector(controls.printNote).style.display = 'none';
+                document.querySelector(controls.generateStickers).style.display = 'inline-block';
+                document.querySelector(controls.generateTracking).style.display = 'inline-block';
+                document.querySelector(controls.viewLayout).style.display = 'inline-block';
+
+                // Remove dynamically added print buttons
+                const stickerPrintBtn = document.getElementById('print-stickers-button');
+                if (stickerPrintBtn) stickerPrintBtn.remove();
+                const trackingPrintBtn = document.getElementById('print-tracking-sheet-button');
+                if (trackingPrintBtn) trackingPrintBtn.remove();
+
+
+                switch (viewId) {
+                    case '#review-container':
+                        reviewActions.style.display = 'flex';
+                        break;
+                    case '#output':
+                        mainControls.style.display = 'block';
+                        document.querySelector(controls.printSchedule).style.display = 'inline-block';
+                        document.querySelector(controls.printNote).style.display = 'inline';
+                        break;
+                    case '#sticker-sheet-container':
+                    case '#tracking-sheet-container':
+                    case '#casting-layout-container':
+                        mainControls.style.display = 'block';
+                        document.querySelector(controls.backToSchedule).style.display = 'inline-block';
+                        document.querySelector(controls.backToReview).style.display = 'none';
+                        document.querySelector(controls.generateStickers).style.display = (viewId === '#sticker-sheet-container') ? 'none' : 'inline-block';
+                        document.querySelector(controls.generateTracking).style.display = (viewId === '#tracking-sheet-container') ? 'none' : 'inline-block';
+                        document.querySelector(controls.viewLayout).style.display = (viewId === '#casting-layout-container') ? 'none' : 'inline-block';
+                        
+                        if (viewId === '#sticker-sheet-container') {
+                             const middleNav = document.getElementById('nav-middle-controls');
+                             const stickerPrintButton = document.createElement('button');
+                             stickerPrintButton.id = 'print-stickers-button';
+                             stickerPrintButton.className = 'btn-primary';
+                             stickerPrintButton.textContent = 'Print Stickers';
+                             stickerPrintButton.onclick = () => prepareAndPrint('sticker-sheet-container');
+                             middleNav.appendChild(stickerPrintButton);
+                        }
+                        if (viewId === '#tracking-sheet-container') {
+                            const middleNav = document.getElementById('nav-middle-controls');
+                            const printButton = document.createElement('button');
+                            printButton.id = 'print-tracking-sheet-button';
+                            printButton.className = 'btn-primary';
+                            printButton.textContent = 'Print Tracking Sheet';
+                            printButton.onclick = () => prepareAndPrint('tracking-sheet-container');
+                            middleNav.appendChild(printButton);
+                        }
+                        break;
+                }
+            }
+
+            return {
+                showView,
+                updateControls
+            };
+        })();
+        
+          // =================================================================================
+          // MODULE: APP STATE & INITIALIZATION
+          // =================================================================================
         // Global variable to track the number of pre-existing form rows in the UI.
         let formRowCount = 1;
 
         // Centralized object to hold the application's state, including parsed data.
         const appState = {
             panelLegend: null,      // Object containing details for each panel type.
+            panelLegendHeaders: [],   // Holds the original header order from the sheet.
             castingSchedule: null,  // Array of objects, where each object represents a day's cast.
             projectInfo: null,      // Object with project metadata (e.g., Project Name, Address).
             projectName: '',         // The name of the project, extracted for easy access.
@@ -911,106 +777,10 @@
             selectedCastingArea: 'presetA' // Default to Preset A
         };
 
-        // Fallback data used if the uploaded file doesn't contain a casting schedule.
-        // This allows the application to function even with incomplete input data.
-        const fallbackCastingSchedule = [
-            { "P21": 4, "P35": 4, "P41": 4 }, { "P21": 4, "P35": 4, "P41": 4 }, { "P6": 3, "P14": 3, "P21": 1, "P35": 1, "P41": 3, "P42": 3 }, { "P2": 1, "P4": 2, "P10": 1, "P12": 2, "P18": 1, "P21": 3, "P28": 1, "P35": 3 }, { "P7": 3, "P15": 3, "P22": 3, "P30": 3, "P31": 1 }, { "P7": 2, "P15": 2, "P22": 2, "P27": 1, "P30": 2, "P31": 1, "P49": 1, "P50": 1, "P51": 1 }, { "P7": 3, "P15": 3, "P22": 3, "P23": 1, "P30": 1, "P36": 1, "P43": 1 }, { "P6": 2, "P14": 2, "P23": 2, "P30": 1, "P36": 2, "P42": 2, "P43": 2 }, { "P6": 3, "P7": 1, "P14": 2, "P15": 1, "P16": 1, "P22": 1, "P26": 1, "P40": 1, "P42": 2, "P48": 1 }, { "P10": 1, "P14": 4, "P20": 1, "P29": 1, "P42": 2, "P52": 2 }, { "P3": 1, "P13": 1, "P23": 3, "P25": 1, "P26": 2, "P36": 3, "P43": 2, "P52": 2 }, { "P23": 3, "P33": 2, "P36": 3, "P37": 2, "P43": 2, "P44": 1 }, { "P1": 1, "P5": 1, "P9": 1, "P11": 1, "P17": 1, "P32": 1, "P33": 1, "P34": 1, "P37": 1, "P38": 1, "P39": 1, "P44": 2, "P45": 1, "P46": 1 }, { "P11": 2, "P15": 2, "P36": 3, "P38": 2, "P47": 3 }, { "P15": 6, "P36": 6 }, { "P15": 4, "P36": 3 }
-        ];
-
         // =================================================================================
         // MODULE: DATA PARSING
         // =================================================================================
 
-        /**
-         * Parses CSV text into an array of objects, using the first row as headers.
-         * Handles basic CSV format with comma delimiters and optional double quotes.
-         * @param {string} csvString The CSV content as a string.
-         * @returns {Array<object>} An array of objects, where each object represents a row.
-         */
-        function parseCsv(csvString) {
-            const lines = csvString.trim().split('\n');
-            if (lines.length === 0) return [];
-
-            // Simple regex to split by comma, but not if inside double quotes
-            const splitRegex = /,(?=(?:(?:[^"]*"){2})*[^"]*$)/;
-
-            const headers = lines[0].split(splitRegex).map(h => h.trim().replace(/^"|"$/g, ''));
-            const data = [];
-
-            for (let i = 1; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (line === '') continue; // Skip empty lines
-
-                const values = line.split(splitRegex).map(v => v.trim().replace(/^"|"$/g, ''));
-                if (values.length === headers.length) {
-                    const rowObject = {};
-                    headers.forEach((header, index) => {
-                        rowObject[header] = values[index];
-                    });
-                    data.push(rowObject);
-                } else {
-                    console.warn(`Skipping malformed CSV row: "${line}" (Expected ${headers.length} columns, got ${values.length})`);
-                }
-            }
-            return data;
-        }
-
-        /**
-         * Transforms parsed CSV data from Google Sheets into the application's expected state format.
-         * @param {object} sheetData An object where keys are sheet names and values are parsed CSV data (array of objects).
-         * @returns {{panelLegend: object, castingSchedule: object[], projectInfo: object}} Structured data for the appState.
-         */
-        function transformCsvDataToAppState(sheetData) {
-            const panelLegend = {};
-            if (sheetData["Panel Legend"]) {
-                sheetData["Panel Legend"].forEach(row => {
-                    if (row["Panel ID"]) {
-                        panelLegend[row["Panel ID"]] = {
-                            length: row["Length"] || '',
-                            width: row["Width"] || '',
-                            thickness: row["Thickness"] || '',
-                            castingType: row["Casting Type"] || '',
-                            finish: row["Finish"] || '',
-                            color: row["Color"] || '',
-                            comments: row["Comments"] || ''
-                        };
-                    }
-                });
-            }
-
-            const castingSchedule = [];
-            if (sheetData["Casting Schedule"] && sheetData["Casting Schedule"].length > 0) {
-                const scheduleHeaders = Object.keys(sheetData["Casting Schedule"][0]);
-                for (let i = 0; i < sheetData["Casting Schedule"].length; i++) {
-                    const row = sheetData["Casting Schedule"][i];
-                    const cast = {};
-                    for (const header of scheduleHeaders) {
-                        if (header !== "Day" && row[header] && !isNaN(parseInt(row[header], 10))) {
-                            cast[header] = parseInt(row[header], 10);
-                        }
-                    }
-                    if (Object.keys(cast).length > 0) {
-                        castingSchedule.push(cast);
-                    }
-                }
-            }
-            if (castingSchedule.length === 0) {
-                console.log("Casting schedule not found or empty in the file, using fallback schedule.");
-                castingSchedule = fallbackCastingSchedule;
-            }
-
-            const projectInfo = {};
-            if (sheetData["Project Information"]) {
-                sheetData["Project Information"].forEach(row => {
-                    // Assuming Project Information is key-value pairs, e.g., "Key", "Value" columns
-                    if (row["Key"] && row["Value"]) {
-                        projectInfo[row["Key"]] = row["Value"];
-                    }
-                });
-            }
-
-            return { panelLegend, castingSchedule, projectInfo };
-        }
 
         /**
          * Parses a dimension string (e.g., "10' 5 1/2\"") into a single numerical value in inches.
@@ -1019,173 +789,215 @@
          * @returns {number} The total dimension in inches. Returns 0 if the input is not a string.
          */
         function parseDim(dimStr) {
-            if (typeof dimStr !== 'string') return 0;
-            let total = 0;
-            const parts = dimStr.replace(/"/g, '').trim().split(' ');
-            parts.forEach(part => {
+            if (typeof dimStr !== 'string' || !dimStr.trim()) return 0;
+
+            let totalInches = 0;
+            // Match feet (e.g., 10')
+            const feetMatch = dimStr.match(/(\d+)\s*'/);
+            if (feetMatch) {
+                totalInches += parseInt(feetMatch[1], 10) * 12;
+            }
+
+            // Process the rest of the string for inches and fractions
+            const inchesPart = dimStr.replace(/(\d+)\s*'/, '').trim();
+            const inchParts = inchesPart.replace(/"/g, '').trim().split(/\s+/);
+
+            for (const part of inchParts) {
+                if (!part) continue;
                 if (part.includes('/')) {
                     const fraction = part.split('/');
-                    total += parseInt(fraction[0], 10) / parseInt(fraction[1], 10);
-                } else if (part) {
-                    total += parseInt(part, 10);
+                    if (fraction.length === 2 && !isNaN(fraction[0]) && !isNaN(fraction[1]) && parseInt(fraction[1], 10) !== 0) {
+                        totalInches += parseFloat(fraction[0]) / parseFloat(fraction[1]);
+                    }
+                } else if (!isNaN(part)) {
+                    totalInches += parseFloat(part);
+                }
+            }
+            return totalInches;
+        }
+
+        /**
+         * Parses raw sheet data (an array of arrays) into a simple key-value object.
+         * Assumes Column A contains the keys and Column B contains the values.
+         * @param {Array<Array<string>>} data The raw 2D array from the sheet.
+         * @returns {object} An object representing the key-value data.
+         */
+        function parseSheetAsKeyValue(data) {
+            if (!data) return {};
+            const obj = {};
+            data.forEach(row => {
+                if (row && row[0]) { // If there's a key in the first column
+                    obj[row[0].toString().trim()] = row[1] ? row[1].toString().trim() : '';
                 }
             });
-            return total;
+            return obj;
         }
 
         /**
-         * Parses data from an uploaded Excel workbook. It looks for specific sheet names
-         * ("Panel Legend", "Casting Schedule", "Project Information") and extracts the
-         * relevant data into structured JavaScript objects.
-         * @param {object} workbook The workbook object from the xlsx library.
-         * @returns {{panelLegend: object, castingSchedule: object[], projectInfo: object}} An object containing the parsed data.
-         * @throws {Error} If the "Panel Legend" sheet is not found.
+         * Parses raw sheet data into an array of objects, using the first row as headers.
+         * @param {Array<Array<string>>} data The raw 2D array from the sheet.
+         * @param {string} keyColumn The name of the column to use as the key for the main object.
+         * @returns {object} An object where keys are from the keyColumn and values are row objects.
          */
-        function parseExcelData(workbook) {
-           const legendSheetName = workbook.SheetNames.find(name => name.toLowerCase().includes('panel legend'));
-           const scheduleSheetName = workbook.SheetNames.find(name => name.toLowerCase().includes('casting schedule'));
-           const projectInfoSheetName = workbook.SheetNames.find(name => name.toLowerCase().includes('project information'));
-           if (!legendSheetName) {
-               throw new Error('Could not find a sheet named "Panel Legend" in the Excel file.');
-           }
-           // --- Parse Project Information (New Flexible Method) ---
-           let projectInfo = null;
-           if (projectInfoSheetName) {
-               projectInfo = {};
-               const projectInfoSheet = workbook.Sheets[projectInfoSheetName];
-               const projectInfoJson = XLSX.utils.sheet_to_json(projectInfoSheet, { header: 1, defval: "" });
-               let lastKey = null;
-               projectInfoJson.forEach(row => {
-                   if (row && row.length > 0) {
-                       const key = String(row[0]).trim().replace(/:$/, '').trim();
-                       const value = row.slice(1).map(v => String(v || '').trim()).join(' ');
-                       if (key) { // We have a new key
-                           projectInfo[key] = value;
-                           lastKey = key;
-                       } else if (lastKey && value) { // No new key, but we have a value and a previous key
-                           // This is a continuation of the previous line, e.g., multi-line address
-                           projectInfo[lastKey] += '\n' + value;
-                       }
-                   }
-               });
-           }
-           // --- Parse Panel Legend (New Robust Method) ---
-           const panelLegendSheet = workbook.Sheets[legendSheetName];
-           const panelLegendJson = XLSX.utils.sheet_to_json(panelLegendSheet, { header: 1, defval: "" });
-           const panelLegend = {};
+        function parseSheetAsObjects(data, keyColumn) {
+            if (!data || data.length < 2) return {};
 
-           if (panelLegendJson.length < 1) {
-               throw new Error('The "Panel Legend" sheet is empty or could not be read.');
-           }
+            const headers = data[0].map(h => h.toString().trim());
+            const keyIndex = headers.indexOf(keyColumn);
+            if (keyIndex === -1) {
+                throw new Error(`The required key column "${keyColumn}" was not found in the sheet.`);
+            }
 
-           const headers = panelLegendJson[0].map(h => String(h || '').trim().toLowerCase());
-           const panelIdColIndex = headers.indexOf('panel id');
+            const obj = {};
+            const body = data.slice(1);
+            body.forEach(row => {
+                const key = row[keyIndex];
+                if (key) {
+                    const rowObj = {};
+                    headers.forEach((header, index) => {
+                        if (index === keyIndex) return; // Skip the key column itself
 
-           if (panelIdColIndex === -1) {
-               throw new Error('Could not find a "Panel ID" column in the "Panel Legend" sheet. Please ensure the column header is named "Panel ID".');
-           }
+                        // Convert header to camelCase for consistency
+                        const camelCaseHeader = header.replace(/\s(.)/g, ($1) => $1.toUpperCase()).replace(/\s/g, '').replace(/^(.)/, ($1) => $1.toLowerCase());
+                        rowObj[camelCaseHeader] = row[index];
+                    });
+                    obj[key] = rowObj;
+                }
+            });
+            return obj;
+        }
 
-           // Create a map of lowercase headers to their original index
-           const headerMap = {};
-           panelLegendJson[0].forEach((h, i) => {
-               headerMap[String(h || '').trim().toLowerCase()] = i;
-           });
+        /**
+         * Parses the raw casting schedule data.
+         * @param {Array<Array<string>>} data The raw 2D array from the sheet.
+         * @returns {Array<object>} An array of objects, where each object represents a cast.
+         */
+        function parseCastingSchedule(data, panelLegend) {
+            if (!data || data.length < 2 || !panelLegend) return [];
 
-           const keyToHeaderMap = {
-               length: 'length',
-               width: 'width',
-               thickness: 'thickness',
-               castingType: 'casting type',
-               finish: 'finish',
-               color: 'color',
-               comments: 'comments'
-           };
+            const panelIds = Object.keys(panelLegend);
+            let bestMatch = { index: -1, score: 0 };
 
-           for (let i = 1; i < panelLegendJson.length; i++) {
-               const row = panelLegendJson[i];
-               if (!row || row.length === 0) continue; // Skip empty rows
+            // Find the row that is most likely the header row by checking for panel IDs
+            data.forEach((row, index) => {
+                if (!row) return;
+                let score = 0;
+                row.forEach(cell => {
+                    if (cell && panelIds.includes(cell.toString().trim())) {
+                        score++;
+                    }
+                });
+                if (score > bestMatch.score) {
+                    bestMatch = { index, score };
+                }
+            });
 
-               const panelId = String(row[panelIdColIndex] || '').trim();
-               if (panelId) {
-                   panelLegend[panelId] = {};
-                   for (const key in keyToHeaderMap) {
-                       const headerName = keyToHeaderMap[key];
-                       const colIndex = headerMap[headerName];
-                       if (colIndex !== undefined) {
-                           panelLegend[panelId][key] = String(row[colIndex] || '').trim();
-                       } else {
-                           panelLegend[panelId][key] = ''; // Default to empty string if column not found
-                       }
-                   }
-               }
-           }
-           // --- Parse Casting Schedule ---
-           let castingSchedule = [];
-           if (scheduleSheetName) {
-               const scheduleSheet = workbook.Sheets[scheduleSheetName];
-               const scheduleJson = XLSX.utils.sheet_to_json(scheduleSheet, { header: 1, defval: "" });
-               if (scheduleJson.length > 1) {
-                   const headers = scheduleJson[0].map(h => String(h).trim());
-                   for (let i = 1; i < scheduleJson.length; i++) {
-                       const row = scheduleJson[i];
-                       if (!row || row.length === 0 || row.every(cell => cell === "" || cell === null || cell === undefined)) continue;
-                       const cast = {};
-                       for (let j = 1; j < headers.length; j++) {
-                           const panelId = headers[j];
-                           const qtyRaw = row[j];
-                           if (panelId && (qtyRaw !== undefined && qtyRaw !== null && qtyRaw !== "")) {
-                               const qty = parseInt(String(qtyRaw).trim(), 10);
-                               if (!isNaN(qty) && qty > 0) {
-                                   cast[panelId] = qty;
-                               }
-                           }
-                       }
-                       if (Object.keys(cast).length > 0) {
-                           castingSchedule.push(cast);
-                       }
-                   }
-               }
-           }
-           if (castingSchedule.length === 0) {
-               console.log("Casting schedule not found or empty in the file, using fallback schedule.");
-               castingSchedule = fallbackCastingSchedule;
-           }
-           return { panelLegend, castingSchedule, projectInfo };
+            let headerRowIndex = bestMatch.index;
+
+            // Fallback to original logic if no good match is found (e.g., < 2 panel IDs in header)
+            if (headerRowIndex === -1 || bestMatch.score < 2) {
+                headerRowIndex = data.findIndex(row => row && row[0] && row[0].toString().trim().match(/^(Cast|Day)/i));
+                if (headerRowIndex === -1) {
+                    // If still no header, it's ambiguous. Fallback to assuming the first row.
+                    headerRowIndex = 0;
+                }
+            }
+
+            const headers = data[headerRowIndex].map(h => h ? h.toString().trim() : '');
+            const scheduleData = data.slice(headerRowIndex + 1);
+            const schedule = [];
+
+            scheduleData.forEach(row => {
+                if (!row || row.every(cell => !cell || cell.toString().trim() === '')) return;
+
+                // Heuristic to prevent misinterpreting data rows as schedule rows
+                const firstCol = row[0] ? row[0].toString().trim() : '';
+                if (panelIds.includes(firstCol)) {
+                    return; // Skip rows that start with a Panel ID, likely not a cast definition
+                }
+
+                const cast = {};
+                for (let i = 1; i < headers.length; i++) {
+                    const panelId = headers[i];
+                    const qty = row[i];
+                    if (panelId && qty && !isNaN(parseInt(qty, 10)) && parseInt(qty, 10) > 0) {
+                        cast[panelId] = parseInt(qty, 10);
+                    }
+                }
+                if (Object.keys(cast).length > 0) {
+                    schedule.push(cast);
+                }
+            });
+            return schedule;
         }
 
 
         /**
-         * Processes the parsed data from `parseExcelData` or `loadDataFromGoogleSheet`. It validates the essential
-         * `panelLegend`, stores all data in the global `appState`, and then calls
-         * `displayReviewData` to show the parsed information to the user for confirmation.
-         * @param {{panelLegend: object, castingSchedule: object[], projectInfo: object}} data The parsed data object.
+         * Processes the raw data from `loadDataFromActiveSheet`. It parses the raw data arrays,
+         * validates the essential `panelLegend`, stores all data in the global `appState`,
+         * and then calls `displayReviewData` to show the parsed information for confirmation.
+         * @param {{projectInfoData: object, panelLegendData: object, castingScheduleData: object, projectInfoForSchedule: object}} rawData The raw data object from Code.gs.
          */
-        function processData({ panelLegend, castingSchedule, projectInfo }) {
+        function processData(rawData) {
+            const { projectInfoData, panelLegendData, castingScheduleData, projectInfoForSchedule } = rawData;
+
+            const projectInfo = parseSheetAsKeyValue(projectInfoData);
+
+            // --- MODIFICATION START: Extract headers before parsing ---
+            let panelLegendHeaders = [];
+            if (panelLegendData && panelLegendData.length > 0) {
+                const rawHeaders = panelLegendData[0].map(h => h.toString().trim());
+                const panelIdIndex = rawHeaders.indexOf('Panel ID');
+                if (panelIdIndex !== -1) {
+                    // Store headers in original order, excluding 'Panel ID'
+                    panelLegendHeaders = rawHeaders.filter((_, index) => index !== panelIdIndex);
+                } else {
+                    // Fallback if 'Panel ID' is not found, just use all but the first column
+                    panelLegendHeaders = rawHeaders.slice(1);
+                }
+            }
+            // --- MODIFICATION END ---
+
+            const panelLegend = parseSheetAsObjects(panelLegendData, 'Panel ID');
+            
+            let castingSchedule = [];
+            // Prefer the dedicated "Casting Schedule" sheet if it exists and has data.
+            if (castingScheduleData && castingScheduleData.length > 1) {
+                castingSchedule = parseCastingSchedule(castingScheduleData, panelLegend);
+            }
+            // Otherwise, fall back to checking the project info data for a schedule.
+            else if (projectInfoForSchedule && projectInfoForSchedule.length > 1) {
+                castingSchedule = parseCastingSchedule(projectInfoForSchedule, panelLegend);
+            }
+
             if (!panelLegend || Object.keys(panelLegend).length === 0) {
-                const rawLegendData = appState.rawSheetData ? (appState.rawSheetData['Panel Legend'] || 'Sheet not found or empty.') : 'N/A';
-                const friendlyMessage = `Could not parse the "Panel Legend".
+                const friendlyMessage = `Could not process the "Panel Legend" data.
 
 This usually happens for one of these reasons:
-1.  The Google Sheet is not shared publicly with "Anyone with the link".
-2.  The sheet name in your Google Sheet is not exactly "Panel Legend" (it's case-sensitive).
-3.  The "Panel Legend" sheet does not contain a column header named exactly "Panel ID".
+1.  The sheet name in your Google Sheet is not exactly "Panel Legend" (it's case-sensitive).
+2.  The "Panel Legend" sheet does not contain a column header named exactly "Panel ID".
+3.  The sheet is empty.
 
-Please verify these points and try again.
-
---------------------------------------------------
-Raw Data Received for "Panel Legend" (first 500 chars):
---------------------------------------------------
-${String(rawLegendData).substring(0, 500)}...
+Please verify the sheet structure and try again.
 `;
                 alert(friendlyMessage);
-                console.error("Panel Legend parsing failed. Raw data:", rawLegendData);
+                console.error("Panel Legend processing failed. Received raw data:", rawData);
                 return;
             }
 
             appState.panelLegend = panelLegend;
+            appState.panelLegendHeaders = panelLegendHeaders;
             appState.castingSchedule = castingSchedule;
             appState.projectInfo = projectInfo;
-            appState.projectName = (projectInfo && projectInfo['Project Name']) || 'N/A';
+            let projectName = 'N/A';
+            if (projectInfo) {
+                // Find the project name key case-insensitively to make it more robust.
+                const projectNameKey = Object.keys(projectInfo).find(key => key.toLowerCase().includes('project') && key.toLowerCase().includes('name'));
+                if (projectNameKey && projectInfo[projectNameKey]) {
+                    projectName = projectInfo[projectNameKey];
+                }
+            }
+            appState.projectName = projectName;
             displayReviewData();
         }
 
@@ -1195,406 +1007,62 @@ ${String(rawLegendData).substring(0, 500)}...
         // The main algorithm for optimizing form reuse.
         // =================================================================================
 
-        /**
-         * Analyzes all future panel requirements to determine the most efficient size for a new form.
-         * The goal is to find a form size that can accommodate the maximum number of future panels,
-         * thereby minimizing the number of new forms that need to be built.
-         * It prioritizes covering the most panels, then the smallest form area, and finally the least wasted space (filler area).
-         * @param {object} panelLegend The master list of panel specifications.
-         * @param {string[]} allPanels A flat array of all panel IDs that need to be cast from this point forward.
-         * @param {object} constraints Contains `maxLength` and `maxWidth` to restrict form dimensions.
-         * @param {object} minimums Contains `minLength` and `minWidth` required for the current panel.
-         * @param {boolean} useFillerPanel A flag to determine the optimization strategy. If true, it optimizes for reusability with fillers. If false, it prioritizes exact matches.
-         * @returns {{optimalLength: number, optimalWidth: number}} The calculated optimal dimensions for a new form.
-         */
-        function findOptimalFormSize(panelLegend, allPanels, constraints = {}, minimums = {}, useFillerPanel = true) {
-            const { maxLength = Infinity, maxWidth = Infinity } = constraints;
-            const { minLength = 0, minWidth = 0 } = minimums;
-            if (allPanels.length === 0) {
-                const optimalLength = Math.min(minLength, maxLength);
-                const optimalWidth = Math.min(minWidth, maxWidth);
-                return { optimalLength: optimalLength, optimalWidth: Math.max(optimalWidth, 50) };
-            }
-            const panelDimensions = allPanels.map(panelId => {
-                const details = panelLegend[panelId];
-                if (!details) return null;
-                return {
-                    id: panelId,
-                    length: parseDim(details.length),
-                    width: parseDim(details.width)
-                };
-            }).filter(p => p !== null);
-            if (panelDimensions.length === 0) {
-                const optimalLength = Math.min(minLength, maxLength);
-                const optimalWidth = Math.min(minWidth, maxWidth);
-                return { optimalLength: optimalLength, optimalWidth: Math.max(optimalWidth, 50) };
-            }
-            const uniqueLengths = [...new Set(panelDimensions.map(p => p.length))]
-                .filter(l => l <= maxLength)
-                .sort((a, b) => a - b);
-            const uniqueWidths = [...new Set(panelDimensions.map(p => p.width))]
-                .filter(w => w <= maxWidth)
-                .sort((a, b) => a - b);
-            let bestCombination = {
-                length: 0,
-                width: 0,
-                coveredPanels: -1,
-                area: Infinity,
-                fillerArea: Infinity // Keep for calculation, but its influence will be conditional
-            };
-            for (const testLength of uniqueLengths) {
-                for (const testWidth of uniqueWidths) {
-                    if (testLength < minLength || testWidth < minWidth) continue;
-                    const fittingPanels = panelDimensions.filter(p => p.length <= testLength && p.width <= testWidth);
-                    const coveredPanels = fittingPanels.length;
-                    if (coveredPanels === 0) continue;
-                    const area = testLength * testWidth;
-                    const totalPanelArea = fittingPanels.reduce((sum, p) => sum + (p.length * p.width), 0);
-                    const fillerArea = (coveredPanels * area) - totalPanelArea;
-
-                    if (useFillerPanel) {
-                        if (coveredPanels > bestCombination.coveredPanels) {
-                            bestCombination = { length: testLength, width: testWidth, coveredPanels, area, fillerArea };
-                        } else if (coveredPanels === bestCombination.coveredPanels) {
-                            if (area < bestCombination.area) {
-                                bestCombination = { length: testLength, width: testWidth, coveredPanels, area, fillerArea };
-                            } else if (area === bestCombination.area) {
-                                if (fillerArea < bestCombination.fillerArea) {
-                                    bestCombination = { length: testLength, width: testWidth, coveredPanels, area, fillerArea };
-                                }
-                            }
-                        }
-                    } else { // If not using filler panels, prioritize smallest area that fits
-                        if (coveredPanels > bestCombination.coveredPanels) {
-                            bestCombination = { length: testLength, width: testWidth, coveredPanels, area, fillerArea: Infinity }; // fillerArea is irrelevant
-                        } else if (coveredPanels === bestCombination.coveredPanels) {
-                            if (area < bestCombination.area) {
-                                bestCombination = { length: testLength, width: testWidth, coveredPanels, area, fillerArea: Infinity };
-                            }
-                        }
-                    }
-                }
-            }
-            let finalLength = bestCombination.length;
-            let finalWidth = bestCombination.width;
-            if (finalLength === 0) {
-                finalLength = Math.min(minLength, maxLength);
-                finalWidth = Math.min(minWidth, maxWidth);
-            }
-            console.log('Optimal form size calculated:', { length: finalLength, width: finalWidth });
-            return {
-                optimalLength: finalLength,
-                optimalWidth: Math.max(finalWidth, 50)
-            };
-        }
-
-        /**
-         * The core function of the application. It orchestrates the entire scheduling process.
-         * It iterates through each cast (day) in the `castingSchedule`, determines the actions
-         * required (reuse existing form, build new form), and tracks the inventory of forms
-         * from one cast to the next. The final output is a detailed HTML table for each cast.
-         * @param {object} panelLegend The master list of panel specifications.
-         * @param {object[]} castingSchedule The list of casts, with each cast being an object of panel IDs and quantities.
-         */
         function generateSchedule(panelLegend, castingSchedule) {
-            const maxLengthInput = document.getElementById('max-length-input').value;
-            const maxWidthInput = document.getElementById('max-width-input').value;
-            const useFillerPanel = document.getElementById('use-filler-panel').checked;
-            const reusableForms = document.getElementById('reusable-forms').checked;
-
-            const constraints = {
-                maxLength: maxLengthInput ? parseInt(maxLengthInput, 10) : Infinity,
-                maxWidth: maxWidthInput ? parseInt(maxWidthInput, 10) : Infinity,
-            };
             const outputDiv = document.getElementById('output');
-            outputDiv.innerHTML = '';
-            document.getElementById('print-schedule-button').disabled = true;
-            document.getElementById('print-note').style.display = 'none';
-            // Initialize the form inventory. This will hold all available forms (both pre-existing and newly built).
-            let formInventory = [];
-            let nextFormId = 1; // Counter for assigning unique IDs to forms.
+            outputDiv.innerHTML = ''; // Clear previous content
 
-            // Load any user-defined pre-existing forms into the inventory.
-            const formRows = document.querySelectorAll('#pre-existing-forms-container-config .form-row');
-            formRows.forEach(row => {
-                const quantity = parseInt(qtyInput.value, 10);
-                if (!isNaN(width) && width > 0 && !isNaN(length) && length > 0 && !isNaN(quantity) && quantity > 0) {
-                    for (let i = 0; i < quantity; i++) {
-                        formInventory.push({
-                            id: nextFormId++,
-                            formLength: length,
-                            initialWidth: width,
-                            lastUsedFor: 'Pre-existing', // Special status for initial forms
-                            lastUsedPanelWidth: width,
-                            lastUsedPanelLengthStr: `${length}"`,
-                            lastUsedPanelWidthStr: `${width}"`,
-                        });
-                    }
-                }
-            });
+            if (!castingSchedule || castingSchedule.length === 0) {
+                outputDiv.innerHTML = '<h2>Casting Schedule</h2><p>No casting schedule data available to display.</p>';
+                return;
+            }
 
-            // Begin building the HTML output for the schedule.
             let fullOutput = `<h2>Casting Schedule</h2>
-            <p>This schedule outlines the optimal use of forms for each casting day, minimizing waste and new form creation.</p>`;
+            <p>This schedule displays the casting plan directly from the "Casting Schedule" tab in the Google Sheet.</p>`;
 
-            // --- MAIN CASTING LOOP ---
-            // Iterate through each day's cast in the schedule.
             castingSchedule.forEach((cast, castIndex) => {
                 const castNumber = castIndex + 1;
-                let availableForms = [...formInventory]; // Forms available at the start of this cast.
-                const usedThisCast = []; // Forms that are used or built during this cast.
-                const productionActions = []; // Log of actions for the output table (e.g., "Reuse", "New").
-                const storeActions = []; // Log of forms being stored for the next cast.
-
-                // Create a flat list of all individual panels required for this cast.
-                const requiredPanels = cast;
-                const requiredPanelsList = [];
-                for (const panelId in requiredPanels) {
-                    if (!panelLegend[panelId]) {
-                        console.warn(`Panel ID ${panelId} not found in legend. Skipping.`);
-                        continue;
-                    }
-                    for (let i = 0; i < requiredPanels[panelId]; i++) {
-                        requiredPanelsList.push(panelId);
-                    }
-                }
-
-                // --- PANEL PROCESSING LOOP ---
-                // For each required panel, find or create a suitable form.
-                requiredPanelsList.forEach((panelId, panelIndex) => {
-                    const panelDetails = panelLegend[panelId];
-                    const requiredLength = parseDim(panelDetails.length);
-                    const requiredWidth = parseDim(panelDetails.width);
-                    let formFoundAndUsed = false;
-                    let bestFormToReuse = null;
-
-                    // --- FIND A REUSABLE FORM ---
-                    // Filter the available inventory to find forms that are large enough for the current panel.
-                    const suitableForms = availableForms.filter(f => f.formLength >= requiredLength && f.initialWidth >= requiredWidth);
-
-                    if (suitableForms.length > 0) {
-                        // Score each suitable form to find the best fit.
-                        // The scoring logic changes based on whether filler panels are allowed.
-                        suitableForms.forEach(f => {
-                            if (useFillerPanel) {
-                                // With fillers, the best form is one that is slightly larger than the panel.
-                                // We prioritize exact dimension matches heavily, then the smallest waste area.
-                                f.score = (f.formLength * f.initialWidth) - (requiredLength * requiredWidth); // Lower score is better (less waste)
-                                if (f.formLength === requiredLength && f.initialWidth === requiredWidth) {
-                                    f.score = 0; // Exact match is best.
-                                } else {
-                                    f.score = (f.formLength * f.initialWidth); // Otherwise, just minimize total area.
-                                }
-                            }
-                        });
-                        // The form with the lowest score is the best one to reuse.
-                        suitableForms.sort((a, b) => a.score - b.score);
-                        bestFormToReuse = suitableForms[0];
-                    }
-
-                    // --- DECISION: REUSE OR BUILD NEW ---
-                    if (bestFormToReuse) {
-                        // A suitable form was found in the inventory.
-                        const form = bestFormToReuse;
-                        let note = '';
-                        if (form.lastUsedFor === 'Pre-existing') {
-                            note = 'Utilized pre-existing form. ';
-                        }
-                        if (form.formLength === requiredLength && form.initialWidth === requiredWidth) {
-                            note += 'Exact form match; no modification needed.';
-                        } else if (useFillerPanel) {
-                            if (form.formLength === requiredLength) {
-                                note += `Adjust fillers to ${panelDetails.width} width.`;
-                            } else if (form.initialWidth === requiredWidth) {
-                                note += `Adjust fillers to ${panelDetails.length} length.`;
-                            } else {
-                                note += `Adjust fillers to ${panelDetails.length} length and ${panelDetails.width} width.`;
-                            }
-                        } else {
-                            note += `Form used for ${panelDetails.length} L x ${panelDetails.width} W.`;
-                        }
-                        productionActions.push({
-                            action: `Reuse (${form.lastUsedFor} -> <strong>${panelId}</strong>)`,
-                            qty: 1,
-                            dimensions: `${panelDetails.length} L x ${panelDetails.width} W`,
-                            notes: note
-                        });
-                        form.lastUsedFor = panelId;
-                        form.lastUsedPanelWidth = requiredWidth;
-                        form.lastUsedPanelLengthStr = panelDetails.length;
-                        form.lastUsedPanelWidthStr = panelDetails.width;
-                        usedThisCast.push(form);
-                        availableForms = availableForms.filter(f => f.id !== form.id);
-                        formFoundAndUsed = true;
-                    }
-                    if (!formFoundAndUsed) {
-                        // No suitable form was found. We must build a new one.
-                        // To do this intelligently, we look at all remaining panels (in this cast and future casts)
-                        // to decide on the most optimal dimensions for this new form.
-                        const remainingForThisCast = requiredPanelsList.slice(panelIndex);
-                        const futureCasts = castingSchedule.slice(castIndex + 1);
-                        const futurePanels = [];
-                        futureCasts.forEach(futureCast => {
-                            for (const pId in futureCast) {
-                                for (let i = 0; i < futureCast[pId]; i++) {
-                                    futurePanels.push(pId);
-                                }
-                            }
-                        });
-                        const allRemainingPanels = remainingForThisCast.concat(futurePanels);
-
-                        // Call the optimizer function to get the best dimensions.
-                        const { optimalLength, optimalWidth } = findOptimalFormSize(
-                            panelLegend,
-                            allRemainingPanels,
-                            constraints,
-                            { minLength: requiredLength, minWidth: requiredWidth }, // Must be at least as big as the current panel
-                            useFillerPanel
-                        );
-
-                        const newFormLength = optimalLength;
-                        const newFormWidth = optimalWidth;
-
-                        // Create the new form object.
-                        const newForm = {
-                            id: nextFormId++,
-                            formLength: newFormLength,
-                            initialWidth: newFormWidth,
-                            lastUsedFor: panelId, // Immediately used for the current panel
-                            lastUsedPanelWidth: requiredWidth,
-                            lastUsedPanelLengthStr: panelDetails.length,
-                            lastUsedPanelWidthStr: panelDetails.width,
-                        };
-
-                        // Add the new form to the list of forms used in this cast.
-                        usedThisCast.push(newForm);
-
-                        // Create a log entry for the output table.
-                        let note = `New form built (${newFormLength}" L x ${newFormWidth}" W).`;
-                        if (useFillerPanel) {
-                            note += ` Set fillers for ${panelDetails.length} L x ${panelDetails.width} W.`;
-                        }
-                        if (requiredLength > newFormLength || requiredWidth > newFormWidth) {
-                            note += ` <strong>WARNING: Panel may not fit. Required: ${requiredLength}"x${requiredWidth}". Form constrained to ${newFormLength}"x${newFormWidth}".</strong>`;
-                        }
-                        productionActions.push({
-                            action: `New (for <strong>${panelId}</strong>)`,
-                            qty: 1,
-                            dimensions: `${panelDetails.length} L x ${panelDetails.width} W`,
-                            notes: note
-                        });
-                    }
-                });
-
-                // --- END OF CAST: UPDATE INVENTORY ---
-                // After processing all panels for the cast, update the form inventory for the next day.
-                if (reusableForms) {
-                    // If forms are reusable, they are carried over. This includes forms that were
-                    // used in this cast and those that were available but not used.
-                    availableForms.forEach(form => {
-                        storeActions.push({
-                            action: `Store (Last used for <strong>${form.lastUsedFor}</strong>)`,
-                            qty: 1,
-                            dimensions: `Form: ${form.lastUsedPanelLengthStr} L x ${form.initialWidth}" W`,
-                            notes: "Store form; no modification."
-                        });
-                    });
-                    formInventory = [...usedThisCast, ...availableForms];
-                } else {
-                    // If forms are not reusable, the inventory is cleared for the next cast.
-                    // This ensures new forms are built for subsequent casts as needed.
-                    // No "Store" actions are generated, and unused forms from this cast are discarded.
-                    formInventory = [];
-                }
                 fullOutput += `<div class="cast-schedule-print-container">`;
                 fullOutput += `<h3>Cast ${castNumber}</h3>`;
                 fullOutput += `
                     <table class="schedule-table">
-                        <tr>
-                            <th>Action / Status Detail</th>
-                            <th>Qty</th>
-                            <th>Dimensions</th>
-                            <th>Modification Notes</th>
-                        </tr>
-                        <tr><td colspan="4"><strong>--- Forms Put into Production ---</strong></td></tr>
+                        <thead>
+                            <tr>
+                                <th>Panel ID</th>
+                                <th>Quantity</th>
+                                <th>Length</th>
+                                <th>Width</th>
+                                <th>Thickness</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                 `;
-                const aggregatedActions = {};
-                productionActions.forEach(pa => {
-                    const key = `${pa.action}|${pa.dimensions}|${pa.notes}`;
-                    if (!aggregatedActions[key]) {
-                        aggregatedActions[key] = { ...pa, qty: 0 };
-                    }
-                    aggregatedActions[key].qty += pa.qty;
-                });
-                for(const key in aggregatedActions) {
-                    const action = aggregatedActions[key];
-                    fullOutput += `<tr><td>${action.action}</td><td>${action.qty}</td><td>${action.dimensions}</td><td>${action.notes}</td></tr>`;
+
+                const sortedPanelIds = Object.keys(cast).sort();
+                for (const panelId of sortedPanelIds) {
+                    const qty = cast[panelId];
+                    const panelDetails = panelLegend[panelId] || {};
+                    fullOutput += `
+                        <tr>
+                            <td><strong>${panelId}</strong></td>
+                            <td>${qty}</td>
+                            <td>${panelDetails.length || 'N/A'}</td>
+                            <td>${panelDetails.width || 'N/A'}</td>
+                            <td>${panelDetails.thickness || 'N/A'}</td>
+                        </tr>
+                    `;
                 }
-                if (storeActions.length > 0) {
-                    fullOutput += `<tr><td colspan="4"><strong>--- Store Forms ---</strong></td></tr>`;
-                    const aggregatedStorage = {};
-                    storeActions.forEach(sa => {
-                        const key = `${sa.action}|${sa.dimensions}|${sa.notes}`;
-                        if (!aggregatedStorage[key]) {
-                            aggregatedStorage[key] = { ...sa, qty: 0 };
-                        }
-                        aggregatedStorage[key].qty += sa.qty;
-                    });
-                    for(const key in aggregatedStorage) {
-                        const action = aggregatedStorage[key];
-                        fullOutput += `<tr><td>${action.action}</td><td>${action.qty}</td><td>${action.dimensions}</td><td>${action.notes}</td></tr>`;
-                    }
-                }
-                fullOutput += `</table>`;
-                fullOutput += `<div class="explanation-section">`;
-                fullOutput += `<h4>Explanation of Stored Forms</h4>`;
-                if (storeActions.length > 0) {
-                    const totalStored = storeActions.reduce((sum, action) => sum + action.qty, 0);
-                    fullOutput += `<p>* (${totalStored}) forms were stored because there were no remaining panel requirements in this cast that could be produced on them.</p>`;
-                } else {
-                    fullOutput += `<p>No forms were stored in this cast as all available forms were utilized for production.</p>`;
-                }
-                fullOutput += `</div>`;
-                fullOutput += `<p><strong>Ending Form Inventory: ${formInventory.length} forms total.</strong></p>`;
-                fullOutput += `</div>`;
+
+                fullOutput += `</tbody></table></div>`;
             });
-            // Setup nav for schedule view
-            document.getElementById('back-to-review-button').style.display = 'inline-block';
-            document.getElementById('back-to-build-details-button').style.display = 'inline-block';
-            document.getElementById('start-over').style.display = 'inline-block';
-            document.getElementById('print-schedule-button').style.display = 'inline-block';
+
+            outputDiv.innerHTML = fullOutput;
+
+            // Update UI controls
             document.getElementById('print-schedule-button').disabled = false;
             document.getElementById('print-note').style.display = 'inline';
-            document.getElementById('generate-stickers-button').style.display = 'inline-block';
             document.getElementById('generate-stickers-button').disabled = false;
             document.getElementById('generate-tracking-sheet-button').disabled = false;
-            document.getElementById('view-layout-button').disabled = false;
-             // Hide others
-             document.getElementById('back-to-schedule-button').style.display = 'none';
-            const trackingPrintButton = document.getElementById('print-tracking-sheet-button');
-            if (trackingPrintButton) trackingPrintButton.remove();
-            const stickerPrintButton = document.getElementById('print-stickers-button');
-            if (stickerPrintButton) stickerPrintButton.remove();
-            let inventorySummary = '';
-            const preExistingForms = formInventory.filter(f => f.lastUsedFor === 'Pre-existing');
-            if (preExistingForms.length > 0) {
-                inventorySummary += `<h3>Initial Form Inventory</h3>`;
-                let inventoryList = `<table class="schedule-table"><tr><th>Form ID</th><th>Dimensions</th></tr>`;
-                preExistingForms.forEach(form => {
-                    inventoryList += `<tr><td>${form.id}</td><td>${form.formLength}" L x ${form.initialWidth}" W</td></tr>`;
-                });
-                inventoryList += '</table><hr>';
-                inventorySummary += inventoryList;
-            }
-            outputDiv.innerHTML = inventorySummary + fullOutput;
-            appState.finalFormInventory = formInventory; // Store for the layout viewer
-
-            // Populate the new layout viewer
-            // populateCastSelector(castingSchedule.length); // No longer needed
-            // Draw all casts
-            if (castingSchedule.length > 0) {
-                // This will be handled by the 'view-layout-button' click now
-            }
+            document.getElementById('view-layout-button').disabled = false; // Layout visualization is now enabled
         }
 
 
@@ -1608,35 +1076,70 @@ ${String(rawLegendData).substring(0, 500)}...
          * This allows the user to verify that their data was read correctly before proceeding.
          */
         function displayReviewData() {
-            const { panelLegend, castingSchedule } = appState;
+            const { panelLegend, castingSchedule, panelLegendHeaders } = appState;
             const legendDiv = document.getElementById('review-panel-legend');
             const scheduleDiv = document.getElementById('review-casting-schedule');
-            let legendHtml = '<table><tr><th>Panel ID</th><th>Length</th><th>Width</th><th>Thickness</th><th>Casting Type</th><th>Finish</th><th>Color</th><th>Comments</th></tr>';
-            for (const id in panelLegend) {
-                const panel = panelLegend[id];
-                legendHtml += `<tr>
-                    <td>${id}</td>
-                    <td>${panel.length}</td>
-                    <td>${panel.width}</td>
-                    <td>${panel.thickness}</td>
-                    <td>${panel.castingType}</td>
-                    <td>${panel.finish}</td>
-                    <td>${panel.color}</td>
-                    <td>${panel.comments}</td>
-                </tr>`;
+ 
+            // Dynamically generate Panel Legend table
+            if (panelLegend && Object.keys(panelLegend).length > 0) {
+                // --- START: Dynamic Header Generation from appState ---
+                // Convert original headers to camelCase to match the keys in the panelLegend objects
+                const camelCaseHeaders = panelLegendHeaders.map(h =>
+                    h.replace(/\s(.)/g, ($1) => $1.toUpperCase())
+                     .replace(/\s/g, '')
+                     .replace(/^(.)/, ($1) => $1.toLowerCase())
+                );
+
+                let legendHtml = '<table><thead><tr>';
+                legendHtml += '<th>Panel ID</th>'; // First header is always Panel ID
+                panelLegendHeaders.forEach(header => {
+                    legendHtml += `<th>${header}</th>`; // Use original header names from the sheet
+                });
+                legendHtml += '</tr></thead><tbody>';
+
+                // Sort panel IDs for consistent row ordering
+                const sortedPanelIds = Object.keys(panelLegend).sort();
+
+                for (const id of sortedPanelIds) {
+                    const panel = panelLegend[id];
+                    legendHtml += `<tr>`;
+                    legendHtml += `<td><strong>${id}</strong></td>`;
+                    // Iterate through the camelCase headers to fetch data in the correct order
+                    camelCaseHeaders.forEach(key => {
+                        legendHtml += `<td>${panel[key] || ''}</td>`;
+                    });
+                    legendHtml += `</tr>`;
+                }
+                legendHtml += '</tbody></table>';
+                legendDiv.innerHTML = legendHtml;
+            } else {
+                legendDiv.innerHTML = '<p>No panel legend data found.</p>';
             }
-            legendHtml += '</table>';
-            legendDiv.innerHTML = legendHtml;
-            let scheduleHtml = '<table><tr><th style="width:10%;">Cast #</th><th>Panels (Qty)</th></tr>';
-            castingSchedule.forEach((cast, index) => {
-                const panelList = Object.entries(cast)
-                    .map(([panelId, qty]) => `${panelId}: ${qty}`)
-                    .join(', ');
-                scheduleHtml += `<tr><td>${index + 1}</td><td>${panelList}</td></tr>`;
-            });
-            scheduleHtml += '</table>';
+
+            // Generate Casting Schedule table (logic remains the same)
+            let scheduleHtml = '';
+            if (castingSchedule && castingSchedule.length > 0) {
+                scheduleHtml = '<table><tr><th style="width:10%;">Cast #</th><th>Panels (Qty)</th></tr>';
+                castingSchedule.forEach((cast, index) => {
+                    const panelList = Object.entries(cast)
+                        .map(([panelId, qty]) => `${panelId}: ${qty}`)
+                        .join(', ');
+                    scheduleHtml += `<tr><td>${index + 1}</td><td>${panelList}</td></tr>`;
+                });
+                scheduleHtml += '</table>';
+            } else {
+                scheduleHtml = `<p style="color: var(--text-secondary); border: 1px dashed var(--border-color); padding: 1rem; border-radius: 0.5rem;">
+                    No casting schedule data was found. Please ensure:
+                    <ul style="margin-top: 0.5rem; padding-left: 1.5rem;">
+                        <li>A sheet named "Casting Schedule" exists, OR</li>
+                        <li>The schedule data is present in the "Project Information" sheet.</li>
+                        <li>The schedule table has a header row starting with "Cast #" or "Day".</li>
+                    </ul>
+                </p>`;
+            }
             scheduleDiv.innerHTML = scheduleHtml;
-            // Display project info
+
+            // Display project info (logic remains the same)
             const projectInfoDiv = document.getElementById('review-project-info');
             if (appState.projectInfo && Object.keys(appState.projectInfo).length > 0) {
                 let projectInfoHtml = '<table style="width:100%; border-collapse: collapse;">';
@@ -1649,12 +1152,9 @@ ${String(rawLegendData).substring(0, 500)}...
             } else {
                 projectInfoDiv.innerHTML = '<p>No project information found in the uploaded file.</p>';
             }
-            document.getElementById('input-container').style.display = 'none';
-            const reviewActions = document.getElementById('review-actions');
-            reviewActions.style.top = `0px`;
-            reviewActions.style.display = 'flex';
-            document.getElementById('review-container').style.display = 'block';
-            document.getElementById('output').style.display = 'none';
+
+            // Show review container using the new navigation module
+            Navigation.showView('#review-container');
         }
 
         /**
@@ -1699,7 +1199,7 @@ ${String(rawLegendData).substring(0, 500)}...
              style.id = 'dynamic-sticker-style';
              style.innerHTML = `
                 @media print {
-                    @page {
+                    @page sticker-page {
                         size: letter portrait;
                         margin: ${settings.marginTop}in ${settings.marginLeft}in;
                     }
@@ -1741,14 +1241,8 @@ ${String(rawLegendData).substring(0, 500)}...
                  }
              `;
              document.head.appendChild(style);
-             const stickerContainer = document.getElementById('sticker-sheet-container');
+             const stickerContainer = document.getElementById('sticker-sheets-output');
              stickerContainer.innerHTML = ''; // Clear previous content
-             const pageTitle = document.createElement('h2');
-             pageTitle.textContent = 'Tracking Tickets';
-             stickerContainer.appendChild(pageTitle);
-             const pageDescription = document.createElement('p');
-             pageDescription.textContent = 'These stickers provide essential panel information for tracking during production.';
-             stickerContainer.appendChild(pageDescription);
              // Create and populate sticker sheets
              for (let i = 0; i < allPanelsWithUniqueIds.length; i += stickersPerPage) {
                  const sheetPanels = allPanelsWithUniqueIds.slice(i, i + stickersPerPage);
@@ -1784,32 +1278,9 @@ ${String(rawLegendData).substring(0, 500)}...
                  });
                  stickerContainer.appendChild(stickerSheet);
              }
-             // Update UI
-             document.getElementById('sticker-settings-container').style.display = 'none';
-             stickerContainer.style.display = 'block';
-             document.getElementById('output-controls').style.display = 'block'; // Keep controls visible
-             // Left
-             document.getElementById('back-to-schedule-button').style.display = 'inline-block';
-             // Middle
-             const middleNav = document.getElementById('nav-middle-controls');
-             if (!document.getElementById('print-stickers-button')) {
-                 const stickerPrintButton = document.createElement('button');
-                 stickerPrintButton.id = 'print-stickers-button';
-                 stickerPrintButton.textContent = 'Print Stickers';
-                 stickerPrintButton.onclick = () => window.print();
-                 middleNav.appendChild(stickerPrintButton);
-             }
-             // Hide others
-             document.getElementById('start-over').style.display = 'none';
-             document.getElementById('back-to-review-button').style.display = 'none';
-             document.getElementById('back-to-build-details-button').style.display = 'none';
-             document.getElementById('back-to-schedule-button').style.display = 'inline-block';
-             document.getElementById('print-schedule-button').style.display = 'none';
-             document.getElementById('print-note').style.display = 'none';
-             document.getElementById('generate-stickers-button').style.display = 'none';
-             document.getElementById('generate-tracking-sheet-button').style.display = 'none';
-             const trackingPrintButton = document.getElementById('print-tracking-sheet-button');
-             if (trackingPrintButton) trackingPrintButton.remove();
+             // Update UI using the new navigation module
+             Navigation.showView('#sticker-sheet-container');
+             document.getElementById('sticker-settings-details').open = false; // Close settings after generating
         }
 
         /**
@@ -1862,29 +1333,8 @@ ${String(rawLegendData).substring(0, 500)}...
                 fullHtml += `</tbody></table></div>`;
             });
             trackingContainer.innerHTML = fullHtml;
-            // Update UI
-            document.getElementById('output').style.display = 'none';
-            document.getElementById('sticker-sheet-container').style.display = 'none';
-            document.getElementById('sticker-settings-container').style.display = 'none';
-            trackingContainer.style.display = 'block';
-            document.getElementById('output-controls').style.display = 'block';
-            // Update nav buttons
-            document.getElementById('back-to-schedule-button').style.display = 'inline-block';
-            document.getElementById('start-over').style.display = 'none';
-            document.getElementById('back-to-review-button').style.display = 'none';
-            document.getElementById('back-to-build-details-button').style.display = 'none';
-            document.getElementById('print-schedule-button').style.display = 'none';
-            document.getElementById('generate-stickers-button').style.display = 'inline-block';
-            document.getElementById('generate-tracking-sheet-button').style.display = 'none';
-            document.getElementById('print-note').style.display = 'none';
-            const middleNav = document.getElementById('nav-middle-controls');
-            if (!document.getElementById('print-tracking-sheet-button')) {
-                const printButton = document.createElement('button');
-                printButton.id = 'print-tracking-sheet-button';
-                printButton.textContent = 'Print Tracking Sheet';
-                printButton.onclick = () => window.print();
-                middleNav.appendChild(printButton);
-            }
+            // Update UI using the new navigation module
+            Navigation.showView('#tracking-sheet-container');
         }
 
 
@@ -1918,14 +1368,19 @@ ${String(rawLegendData).substring(0, 500)}...
                 for (let i = 0; i < castData[panelId]; i++) {
                     panelInstanceCounter[panelId]++;
                     const uniqueId = `${panelId}.${String(panelInstanceCounter[panelId]).padStart(2, '0')}`;
+                    const offsetInput = document.getElementById('form-offset-input');
+                    const offset = parseFloat(offsetInput.value) || 0;
+                    const baseWidth = parseDim(panelLegend[panelId].width);
+                    const baseLength = parseDim(panelLegend[panelId].length);
+
                     forms.push({
                         id: uniqueId,
                         panelId: panelId,
                         x: 0, // Initial position in inches
                         y: 0,
                         rotation: 0, // In degrees
-                        width: parseDim(panelLegend[panelId].width),
-                        length: parseDim(panelLegend[panelId].length)
+                        width: baseWidth > 0 ? baseWidth + (2 * offset) : 0,
+                        length: baseLength > 0 ? baseLength + (2 * offset) : 0
                     });
                 }
             });
@@ -2406,6 +1861,32 @@ ${String(rawLegendData).substring(0, 500)}...
             if (canvas) drawCastingLayout(castIndex, canvas);
         }
 
+        function prepareAndPrint(containerId) {
+            const body = document.body;
+            const container = document.getElementById(containerId);
+            if (!container) {
+                console.error('Print container not found:', containerId);
+                return;
+            }
+
+            // Add a class to the body and a data attribute to the container
+            // so CSS can target the correct element to show.
+            body.classList.add('printing');
+            container.classList.add('printing-target');
+
+            const onAfterPrint = () => {
+                body.classList.remove('printing');
+                container.classList.remove('printing-target');
+                window.removeEventListener('afterprint', onAfterPrint);
+            };
+
+            window.addEventListener('afterprint', onAfterPrint);
+
+            setTimeout(() => {
+                window.print();
+            }, 50);
+        }
+
         function generatePrintableLayout() {
             const container = document.getElementById('printable-layout-container');
             container.innerHTML = ''; // Clear previous content
@@ -2419,14 +1900,17 @@ ${String(rawLegendData).substring(0, 500)}...
                 const { length: panelLength, width: panelWidth } = panelDimensions;
 
                 let svgContent = `<div class="printable-cast-layout">`;
-                const titleFontSize = Math.max(48, panelWidth / 4) * 0.8; // Reduced font size by 20%
-                const viewBoxY = -titleFontSize * 1.2; // Dynamic Y for viewBox to accommodate large font
-                const viewBoxHeight = panelWidth + 40 - viewBoxY; // Adjust height accordingly
+                const titleFontSize = Math.max(48, panelWidth / 4) * 0.8;
+                const titleAreaHeight = titleFontSize * 2.5; // Provides generous vertical space for the title.
+                const viewBoxY = -titleAreaHeight;
+                const viewBoxHeight = panelWidth + (2 * titleAreaHeight); // Creates symmetrical vertical padding around the casting area.
 
                 svgContent += `<svg class="printable-svg" viewBox="-10 ${viewBoxY} ${panelLength + 20} ${viewBoxHeight}" xmlns="http://www.w3.org/2000/svg">`;
                 svgContent += `<rect x="-10" y="${viewBoxY}" width="${panelLength + 20}" height="${viewBoxHeight}" fill="white" />`;
 
-                svgContent += `<text x="0" y="${-titleFontSize * 0.5}" font-family="sans-serif" font-size="${titleFontSize}" font-weight="bold" text-anchor="start" fill="black">${appState.projectName} - Cast ${castIndex + 1}</text>`;
+                const projectTitle = (appState.projectName && appState.projectName.toLowerCase() !== 'not available' && appState.projectName.toLowerCase() !== 'n/a') ? appState.projectName : 'Project Layout';
+                // Position the title's baseline within the allocated title area.
+                svgContent += `<text x="0" y="${viewBoxY + titleFontSize * 1.2}" font-family="sans-serif" font-size="${titleFontSize}" font-weight="bold" text-anchor="start" fill="black">${projectTitle} - Cast ${castIndex + 1}</text>`;
 
                 // Draw tables first
                 const areaKey = layoutState.selectedCastingArea;
@@ -2459,7 +1943,7 @@ ${String(rawLegendData).substring(0, 500)}...
                     const { x, y, length, width, rotation, panelId } = form;
                     svgContent += `<g transform="translate(${x}, ${y}) rotate(${rotation}, ${length / 2}, ${width / 2})">`;
                     svgContent += `<rect x="0" y="0" width="${length}" height="${width}" fill="#f0f0f0" stroke="black" stroke-width="0.1" />`;
-                    const fontSize = Math.min(width * 0.4, length / (panelId.length * 0.6), 5);
+                    const fontSize = Math.min(width * 0.6, length / (panelId.length * 0.6), 12); // Increased font size
                     svgContent += `<text x="${length / 2}" y="${width / 2}" font-family="sans-serif" font-size="${fontSize}" text-anchor="middle" dominant-baseline="middle" fill="black">${panelId}</text>`;
                     svgContent += `</g>`;
                 });
@@ -2469,7 +1953,7 @@ ${String(rawLegendData).substring(0, 500)}...
             });
 
             container.innerHTML = fullSvgContent;
-            window.print();
+            prepareAndPrint('printable-layout-container');
         }
 
 
@@ -2507,196 +1991,105 @@ ${String(rawLegendData).substring(0, 500)}...
 
 
         // =================================================================================
+        // MODULE: UTILITIES
+        // =================================================================================
+        const Utilities = (() => {
+            const fullscreenBtn = document.getElementById('fullscreen-btn');
+            const enterFullscreenIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="pointer-events: none;"><path d="M1.5 1a.5.5 0 0 0-.5.5v4a.5.5 0 0 1-1 0v-4A1.5 1.5 0 0 1 1.5 0h4a.5.5 0 0 1 0 1h-4zM10 .5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 16 1.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zM.5 10a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 0 14.5v-4a.5.5 0 0 1 .5-.5zm15 0a.5.5 0 0 1 .5.5v4a1.5 1.5 0 0 1-1.5 1.5h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5z"/></svg>`;
+            const exitFullscreenIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" style="pointer-events: none;"><path d="M5.5 0a.5.5 0 0 1 .5.5v4A1.5 1.5 0 0 1 4.5 6h-4a.5.5 0 0 1 0-1h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 .5-.5zm5 0a.5.5 0 0 1 .5.5v4a.5.5 0 0 0 .5.5h4a.5.5 0 0 1 0 1h-4A1.5 1.5 0 0 1 10 4.5v-4a.5.5 0 0 1 .5-.5zM0 10.5a.5.5 0 0 1 .5-.5h4A1.5 1.5 0 0 1 6 11.5v4a.5.5 0 0 1-1 0v-4a.5.5 0 0 0-.5-.5h-4a.5.5 0 0 1-.5-.5zm10 0a.5.5 0 0 1 .5-.5h4a.5.5 0 0 0 .5-.5v-4a.5.5 0 0 1 1 0v4A1.5 1.5 0 0 1 14.5 16h-4a.5.5 0 0 1-.5-.5z"/></svg>`;
+
+            function toggleFullScreen() {
+                if (!document.fullscreenElement && !document.mozFullScreenElement && !document.webkitFullscreenElement && !document.msFullscreenElement) {
+                    const el = document.documentElement;
+                    if (el.requestFullscreen) {
+                        el.requestFullscreen();
+                    } else if (el.msRequestFullscreen) {
+                        el.msRequestFullscreen();
+                    } else if (el.mozRequestFullScreen) {
+                        el.mozRequestFullScreen();
+                    } else if (el.webkitRequestFullscreen) {
+                        el.webkitRequestFullscreen(Element.ALLOW_KEYBOARD_INPUT);
+                    }
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    } else if (document.msExitFullscreen) {
+                        document.msExitFullscreen();
+                    } else if (document.mozCancelFullScreen) {
+                        document.mozCancelFullScreen();
+                    } else if (document.webkitExitFullscreen) {
+                        document.webkitExitFullscreen();
+                    }
+                }
+            }
+
+            function updateFullscreenButton() {
+                if (!fullscreenBtn) return;
+                if (document.fullscreenElement || document.webkitFullscreenElement || document.mozFullScreenElement || document.msFullscreenElement) {
+                    fullscreenBtn.innerHTML = exitFullscreenIcon;
+                    fullscreenBtn.title = "Exit Fullscreen";
+                } else {
+                    fullscreenBtn.innerHTML = enterFullscreenIcon;
+                    fullscreenBtn.title = "Enter Fullscreen";
+                }
+            }
+            
+            function init() {
+                if(fullscreenBtn) {
+                    fullscreenBtn.innerHTML = enterFullscreenIcon;
+                    fullscreenBtn.addEventListener('click', toggleFullScreen);
+                    document.addEventListener('fullscreenchange', updateFullscreenButton);
+                    document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+                    document.addEventListener('mozfullscreenchange', updateFullscreenButton);
+                    document.addEventListener('MSFullscreenChange', updateFullscreenButton);
+                }
+            }
+
+            return {
+                init,
+                toggleFullScreen
+            };
+        })();
+
+        // =================================================================================
         // MODULE: EVENT LISTENERS & UI HANDLERS
         // =================================================================================
 
-        /**
-         * Handles the file selection event. It uses the FileReader API to read the
-         * selected Excel file, then passes the data to the `xlsx` library for parsing,
-         * and finally calls `processData` to handle the parsed information.
-         */
-        function handleFileSelect() {
-            const fileInput = document.getElementById('file-input');
-            if (fileInput.files.length === 0) {
-                alert('Please select a file to upload.');
-                return;
-            }
-            const file = fileInput.files[0];
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                try {
-                    const data = event.target.result;
-                    let parsedData;
-                    const workbook = XLSX.read(data, { type: 'binary' });
-                    parsedData = parseExcelData(workbook);
-                    processData(parsedData);
-                } catch (error) {
-                    alert('Error processing file: ' + error.message);
-                    console.error(error);
-                }
-            };
-            reader.onerror = function(error) {
-                alert('Failed to read file.');
-                console.error('FileReader error:', error);
-            };
-            reader.readAsBinaryString(file);
-        }
-
-        /**
-         * Enables or disables the main "Generate Schedule" button based on whether a
-         * file has been selected by the user.
-         */
-        function updateGenerateButtonState() {
-            const fileInput = document.getElementById('file-input');
-            const generateButton = document.getElementById('generate-schedule');
-            generateButton.disabled = fileInput.files.length === 0;
-        }
-
-        /**
-         * Adds a new row to the "Pre-existing Forms" input section in the UI,
-         * allowing the user to define multiple types of existing forms.
-         */
-        function addPreExistingFormRow() {
-            formRowCount++;
-            // Determine which container is currently visible to the user.
-            const container = document.getElementById('pre-existing-forms-container-config');
-
-            const newRow = document.createElement('div');
-            newRow.className = 'form-row';
-            newRow.innerHTML = `
-                <span>Form ${formRowCount}</span>
-                <input type="number" placeholder="Width" class="pre-existing-width">
-                <input type="number" placeholder="Length" class="pre-existing-length">
-                <input type="number" placeholder="Quantity" class="pre-existing-qty" value="1">
-            `;
-            container.appendChild(newRow);
-        }
 
         /**
          * Resets the entire application UI to its initial state. This is used by the
          * "Start Over" button to clear all data and return to the file upload screen.
          */
         function resetToInitialView() {
-            document.getElementById('output').style.display = 'none';
-            document.getElementById('output-controls').style.display = 'none';
-            document.getElementById('input-container').style.display = 'block';
-            document.getElementById('file-input').value = '';
-            appState.panelLegend = null;
-            appState.castingSchedule = null;
-            document.getElementById('output').innerHTML = '<p>Please upload an Excel file and click "Generate Schedule".</p>';
+            location.reload();
         }
 
         // --- Event Listener Setup ---
         // This function runs once the entire HTML document has been loaded and parsed.
         // It's the main entry point for attaching all the interactive event handlers.
         document.addEventListener('DOMContentLoaded', () => {
-            // Main Actions & Auth
-            authorizeButton.addEventListener('click', handleAuthClick);
-            signoutButton.addEventListener('click', handleSignoutClick);
-            document.getElementById('get-sheets-button').addEventListener('click', listSheetsInFolder);
-            document.getElementById('load-selected-sheet').addEventListener('click', loadSelectedSheet);
-            document.getElementById('generate-schedule').addEventListener('click', handleFileSelect);
+            // Main Actions
+            // Automatically load data from the sheet when the app starts.
+            loadDataFromActiveSheet();
+            Utilities.init();
             document.getElementById('confirm-generate').addEventListener('click', () => {
-                document.getElementById('review-actions').style.display = 'none';
-                document.getElementById('review-container').style.display = 'none';
-                document.getElementById('casting-config-container').style.display = 'block';
-            });
-
-            // Config View Actions
-           document.getElementById('back-to-review-from-config').addEventListener('click', () => {
-
-               document.getElementById('casting-config-container').style.display = 'none';
-               displayReviewData(); // Go back to review screen
-           });
-
-            document.getElementById('confirm-config-generate').addEventListener('click', () => {
-                document.getElementById('casting-config-container').style.display = 'none';
-                document.getElementById('output').style.display = 'block';
-                document.getElementById('output-controls').style.display = 'block';
                 generateSchedule(appState.panelLegend, appState.castingSchedule);
+                Navigation.showView('#output');
             });
 
             // Navigation & View Changes
-            document.getElementById('back-to-build-details-button').addEventListener('click', () => {
-                document.getElementById('output').style.display = 'none';
-                document.getElementById('output-controls').style.display = 'none';
-                document.getElementById('casting-config-container').style.display = 'block';
-            });
-
             document.getElementById('back-to-review-button').addEventListener('click', () => {
-                document.getElementById('output').style.display = 'none';
-                document.getElementById('output-controls').style.display = 'none';
-                document.getElementById('sticker-sheet-container').style.display = 'none';
-                document.getElementById('tracking-sheet-container').style.display = 'none';
-                document.getElementById('casting-layout-container').style.display = 'none';
-                const trackingPrintButton = document.getElementById('print-tracking-sheet-button');
-                if (trackingPrintButton) trackingPrintButton.remove();
-                const stickerPrintButton = document.getElementById('print-stickers-button');
-                if (stickerPrintButton) stickerPrintButton.remove();
-                displayReviewData();
+                Navigation.showView('#review-container');
             });
-            document.getElementById('cancel-review').addEventListener('click', () => {
-                document.getElementById('review-actions').style.display = 'none';
-                document.getElementById('review-container').style.display = 'none';
-                document.getElementById('output').style.display = 'none';
-                document.getElementById('input-container').style.display = 'block';
-                document.getElementById('file-input').value = '';
-                const configContainer = document.getElementById('pre-existing-forms-container-config');
-                configContainer.innerHTML = `
-                    <div class="form-row">
-                        <span>Form 1</span>
-                        <input type="number" placeholder="Width" class="pre-existing-width">
-                        <input type="number" placeholder="Length" class="pre-existing-length">
-                        <input type="number" placeholder="Quantity" class="pre-existing-qty" value="1">
-                    </div>
-                `;
-                formRowCount = 1;
-            });
-            document.getElementById('start-over').addEventListener('click', resetToInitialView);
+            
             document.getElementById('back-to-schedule-button').addEventListener('click', () => {
-               document.getElementById('sticker-sheet-container').style.display = 'none';
-               document.getElementById('sticker-settings-container').style.display = 'none';
-               document.getElementById('tracking-sheet-container').style.display = 'none';
-               document.getElementById('casting-layout-container').style.display = 'none';
-               document.getElementById('output').style.display = 'block';
-               document.getElementById('output-controls').style.display = 'block';
-               
-               // Left
-               document.getElementById('start-over').style.display = 'inline-block';
-               document.getElementById('back-to-review-button').style.display = 'inline-block';
-               document.getElementById('back-to-build-details-button').style.display = 'inline-block';
-               document.getElementById('back-to-schedule-button').style.display = 'none';
-     
-               // Middle
-               document.getElementById('print-schedule-button').style.display = 'inline-block';
-               document.getElementById('print-note').style.display = 'inline';
-     
-               // Right
-               document.getElementById('generate-stickers-button').style.display = 'inline-block';
-               document.getElementById('generate-tracking-sheet-button').style.display = 'inline-block';
-               document.getElementById('view-layout-button').style.display = 'inline-block';
-      
-               const stickerPrintButton = document.getElementById('print-stickers-button');
-               if (stickerPrintButton) stickerPrintButton.remove();
-               const trackingPrintButton = document.getElementById('print-tracking-sheet-button');
-               if (trackingPrintButton) trackingPrintButton.remove();
-     
+               Navigation.showView('#output');
                const stickerStyle = document.getElementById('dynamic-sticker-style');
                if(stickerStyle) stickerStyle.remove();
            });
 
-            // Input Handlers
-            document.getElementById('file-input').addEventListener('change', updateGenerateButtonState);
-            document.getElementById('add-form-row-config').addEventListener('click', addPreExistingFormRow);
-
             document.getElementById('view-layout-button').addEventListener('click', () => {
-                document.getElementById('output').style.display = 'none';
-                document.getElementById('sticker-sheet-container').style.display = 'none';
-                document.getElementById('sticker-settings-container').style.display = 'none';
-                document.getElementById('tracking-sheet-container').style.display = 'none';
-                
-                const layoutContainer = document.getElementById('casting-layout-container');
-                layoutContainer.style.display = 'block';
+                Navigation.showView('#casting-layout-container');
                 
                 const layoutsWrapper = document.getElementById('layouts-wrapper');
                 layoutsWrapper.innerHTML = ''; // Clear previous layouts
@@ -2737,19 +2130,20 @@ ${String(rawLegendData).substring(0, 500)}...
                     newCanvas.addEventListener('mouseup', handleCanvasMouseUp);
                     newCanvas.addEventListener('mouseleave', handleCanvasMouseUp);
                 });
-
-                // Update nav
-                document.getElementById('back-to-schedule-button').style.display = 'inline-block';
-                document.getElementById('generate-stickers-button').style.display = 'inline-block';
-                document.getElementById('generate-tracking-sheet-button').style.display = 'inline-block';
-                document.getElementById('view-layout-button').style.display = 'none';
             });
 
             document.getElementById('casting-area-selector').addEventListener('change', handleCastingAreaChange);
 
+            document.getElementById('form-offset-input').addEventListener('change', () => {
+                // When offset changes, invalidate all current layouts so they are recalculated
+                layoutState.layouts = {};
+                // If the layout container is visible, simulate a click on the view button to refresh it
+                if (document.getElementById('casting-layout-container').style.display === 'block') {
+                    document.getElementById('view-layout-button').click();
+                }
+            });
+
             // New listeners for interactive layout
-            // Event listeners are now added dynamically to each canvas.
-            // The old static listeners are no longer needed.
             window.addEventListener('keydown', handleKeyDown);
             window.addEventListener('keyup', handleKeyUp);
 
@@ -2759,31 +2153,29 @@ ${String(rawLegendData).substring(0, 500)}...
             document.getElementById('print-layout-btn').addEventListener('click', generatePrintableLayout);
 
             // Output Generation
-            document.getElementById('print-schedule-button').addEventListener('click', () => window.print());
+            document.getElementById('print-schedule-button').addEventListener('click', () => prepareAndPrint('output'));
+            
             document.getElementById('generate-stickers-button').addEventListener('click', () => {
                 if (!appState.panelLegend || !appState.castingSchedule) {
                     alert('Please generate a schedule first.');
                     return;
                 }
-                document.getElementById('output').style.display = 'none';
-                document.getElementById('tracking-sheet-container').style.display = 'none';
-                document.getElementById('sticker-sheet-container').style.display = 'none';
-                document.getElementById('casting-layout-container').style.display = 'none';
-                document.getElementById('output-controls').style.display = 'none';
-                document.getElementById('sticker-settings-container').style.display = 'block';
+                // Directly generate stickers, as the function now handles UI updates.
+                generateStickers();
             });
-            document.getElementById('confirm-generate-stickers').addEventListener('click', generateStickers);
-            document.getElementById('cancel-sticker-generation').addEventListener('click', () => {
-                document.getElementById('sticker-settings-container').style.display = 'none';
-                document.getElementById('output').style.display = 'block';
-                document.getElementById('output-controls').style.display = 'block';
-            });
-            document.getElementById('generate-tracking-sheet-button').addEventListener('click', generateTrackingSheet);
 
-            // Initial State
-            updateGenerateButtonState();
+            // The 'toggle-sticker-settings-btn' has been replaced by a <details> element, so its listener is no longer needed.
+
+            document.getElementById('confirm-generate-stickers').addEventListener('click', generateStickers);
+            
+            document.getElementById('cancel-sticker-settings').addEventListener('click', () => {
+                // Just close the settings <details> element.
+                document.getElementById('sticker-settings-details').open = false;
+            });
+
+            document.getElementById('generate-tracking-sheet-button').addEventListener('click', generateTrackingSheet);
         });
     </script>
     </div>
 </body>
-</html>
+</html> 
